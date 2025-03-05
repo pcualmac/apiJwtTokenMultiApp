@@ -1,0 +1,100 @@
+services:
+  wrokbase:
+    build:
+      context: .
+      dockerfile: DockerfileWrork
+    container_name: java_work
+    restart: always
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: tail -f /dev/null
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=rootpassword
+    networks:
+      - backend
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: java_app
+  #   restart: always
+  #   working_dir: /app
+  #   command: ["java", "-jar", "apiJwtToken-0.0.1-SNAPSHOT.jar"]
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   environment:
+  #     - MYSQL_HOST=db
+  #     - MYSQL_USER=root
+  #     - MYSQL_PASSWORD=rootpassword
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - backend
+  db:
+    image: mysql:5.7
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: mydatabase
+      MYSQL_USER: user
+      MYSQL_PASSWORD: userpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOST=db
+      - PMA_ABSOLUTE_URI=https://localhost/phpmyadmin/ # Corrected URI
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MEMORY_LIMIT=512M
+      - UPLOAD_LIMIT=64M
+      - PMA_FORCE_SSL=false
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certificate.crt:/etc/nginx/certificate.crt
+      - ./certificate.csr:/etc/nginx/certificate.csr
+      - ./private.key:/etc/nginx/private.key
+    depends_on:
+      # - app
+      - phpmyadmin
+    networks:
+      - backend
+
+volumes:
+  mysql_data:
+
+networks:
+  backend:
+    driver: bridge
