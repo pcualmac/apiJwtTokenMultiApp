@@ -1,110 +1,129 @@
 package com.example.apiJwtToken.repository;
 
 import com.example.apiJwtToken.model.Application;
+import com.example.apiJwtToken.model.Role;
+import com.example.apiJwtToken.model.User;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 @TestPropertySource(locations = "classpath:application-test.properties")
-@Sql(scripts = "classpath:schema2.sql", executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)
+@Sql(scripts = "classpath:schemaonly.sql", executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)
 public class ApplicationRepositoryTest {
+
+    @Autowired
+    private TestEntityManager entityManager;
 
     @Autowired
     private ApplicationRepository applicationRepository;
 
-    @Test
-    public void testSaveApplication() {
-        Application application = new Application();
-        application.setApplicationName("TestApp");
-        application.setSecretKey("secretKey");
-        application.setCreatedAt(LocalDateTime.now());
-        application.setUpdatedAt(LocalDateTime.now());
+    private Application application1;
+    private Application application2;
+    private User user1;
+    private User user2;
+    private Role role1;
+    private Role role2;
 
-        Application savedApplication = applicationRepository.save(application);
-
-        assertNotNull(savedApplication.getId());
-        assertEquals("TestApp", savedApplication.getApplicationName());
-        assertEquals("secretKey", savedApplication.getSecretKey());
-        assertNotNull(savedApplication.getCreatedAt());
-        assertNotNull(savedApplication.getUpdatedAt());
+    @BeforeEach
+    void setUp() {
+        // Setup Applications
+        application1 = new Application("App1", "secret1");
+        application2 = new Application("App2", "secret2");
+        entityManager.persist(application1);
+        entityManager.persist(application2);
+    
+        // Setup Users
+        user1 = new User("user1", "user1@example.com", "user1password");
+        user2 = new User("user2", "user2@example.com", "user2password");
+        user1.getApplications().add(application1);
+        user2.getApplications().add(application1);
+        user1.getApplications().add(application2);
+        entityManager.persist(user1);
+        entityManager.persist(user2);
+    
+        // Setup Roles
+        role1 = new Role("role1");
+        role2 = new Role("role2");
+        role1.getApplications().add(application1);
+        role2.getApplications().add(application1);
+        role1.getApplications().add(application2);
+        entityManager.persist(role1);
+        entityManager.persist(role2);
+    
+        // Add roles to applications.
+        application1.getRoles().add(role1);
+        application1.getRoles().add(role2);
+        application2.getRoles().add(role1);
+    
+        // Add roles to users.
+        user1.getRoles().add(role1);
+        user2.getRoles().add(role2);
+    
+        entityManager.flush();
     }
 
     @Test
-    public void testFindApplicationById() {
-        Application application = new Application();
-        application.setApplicationName("FindApp");
-        application.setSecretKey("findSecret");
-        application.setCreatedAt(LocalDateTime.now());
-        application.setUpdatedAt(LocalDateTime.now());
-
-        Application savedApplication = applicationRepository.save(application);
-
-        Optional<Application> foundApplication = applicationRepository.findById(savedApplication.getId());
-
-        assertTrue(foundApplication.isPresent());
-        assertEquals(savedApplication.getId(), foundApplication.get().getId());
-        assertEquals("FindApp", foundApplication.get().getApplicationName());
+    void findUsersByApplicationIdTest() {
+        List<User> users = applicationRepository.findUsersByApplicationId(application1.getId());
+        assertEquals(2, users.size());
+        assertTrue(users.contains(user1));
+        assertTrue(users.contains(user2));
     }
 
     @Test
-    public void testFindByApplicationName() {
-        Application application = new Application();
-        application.setApplicationName("UniqueApp");
-        application.setSecretKey("uniqueSecret");
-        application.setCreatedAt(LocalDateTime.now());
-        application.setUpdatedAt(LocalDateTime.now());
-
-        applicationRepository.save(application);
-
-        Optional<Application> foundApplication = applicationRepository.findByApplicationName("UniqueApp");
-
-        assertTrue(foundApplication.isPresent());
-        assertEquals("UniqueApp", foundApplication.get().getApplicationName());
-        assertEquals("uniqueSecret", foundApplication.get().getSecretKey());
+    void findRolesByApplicationIdTest() {
+        List<Role> roles = applicationRepository.findRolesByApplicationId(application1.getId());
+        assertEquals(2, roles.size());
+        assertTrue(roles.contains(role1));
+        assertTrue(roles.contains(role2));
     }
 
     @Test
-    public void testUpdateApplication() {
-        Application application = new Application();
-        application.setApplicationName("UpdateApp");
-        application.setSecretKey("updateSecret");
-        application.setCreatedAt(LocalDateTime.now());
-        application.setUpdatedAt(LocalDateTime.now());
-
-        Application savedApplication = applicationRepository.save(application);
-
-        savedApplication.setApplicationName("UpdatedApp");
-        applicationRepository.save(savedApplication);
-
-        Optional<Application> updatedApplication = applicationRepository.findById(savedApplication.getId());
-
-        assertTrue(updatedApplication.isPresent());
-        assertEquals("UpdatedApp", updatedApplication.get().getApplicationName());
+    void findUsersByRoleAndApplicationIdTest() {
+        List<User> users = applicationRepository.findUsersByRoleAndApplicationId(role1.getId(), application1.getId());
+        assertEquals(1, users.size());
+        assertTrue(users.contains(user1));
     }
 
     @Test
-    public void testDeleteApplication() {
-        Application application = new Application();
-        application.setApplicationName("DeleteApp");
-        application.setSecretKey("deleteSecret");
-        application.setCreatedAt(LocalDateTime.now());
-        application.setUpdatedAt(LocalDateTime.now());
+    void findByApplicationNameTest() {
+        List<Application> applications = applicationRepository.findByApplicationName("App1");
+        assertEquals(1, applications.size());
+        assertEquals(application1, applications.get(0));
+    }
 
-        Application savedApplication = applicationRepository.save(application);
+    @Test
+    void findAllApplicationNamesTest() {
+        List<String> names = applicationRepository.findAllApplicationNames();
+        assertEquals(2, names.size());
+        assertTrue(names.contains("App1"));
+        assertTrue(names.contains("App2"));
+    }
 
-        applicationRepository.delete(savedApplication);
+    @Test
+    void findSecretKeyByIdTest() {
+        Optional<String> secretKey = applicationRepository.findSecretKeyById(application1.getId());
+        assertTrue(secretKey.isPresent());
+        assertEquals("secret1", secretKey.get());
+    }
 
-        Optional<Application> deletedApplication = applicationRepository.findById(savedApplication.getId());
-
-        assertFalse(deletedApplication.isPresent());
+    @Test
+    void findJwtExpirationByIdTest() {
+        Optional<Long> jwtExpiration = applicationRepository.findJwtExpirationById(application1.getId());
+        assertTrue(jwtExpiration.isPresent());
+        assertEquals(3600000L, jwtExpiration.get());
     }
 }

@@ -1,28 +1,22 @@
 package com.example.apiJwtToken.service;
 
-import com.example.apiJwtToken.model.Application;
-import com.example.apiJwtToken.model.Role;
 import com.example.apiJwtToken.model.User;
-import com.example.apiJwtToken.repository.ApplicationRepository;
-import com.example.apiJwtToken.repository.RoleRepository;
 import com.example.apiJwtToken.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.Set;
-import com.example.apiJwtToken.model.User;
 
 @Service
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    @Autowired
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     public Optional<User> getUserById(Long id) {
@@ -37,7 +31,50 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
+    public List<User> getUsersByApplicationId(Long applicationId) {
+        return userRepository.findByApplicationId(applicationId);
+    }
+
+    public List<User> getUsersByApplicationName(String applicationName) {
+        return userRepository.findByApplicationName(applicationName);
+    }
+
+    public List<User> getUsersByRoleId(Long roleId) {
+        return userRepository.findByRoleId(roleId);
+    }
+
+    public List<User> getUsersByRoleName(String roleName) {
+        return userRepository.findByRoleName(roleName);
+    }
+
+    public List<User> getUsersByRoleIdAndApplicationId(Long roleId, Long applicationId) {
+        return userRepository.findByRoleIdAndApplicationId(roleId, applicationId);
+    }
+
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
     public User saveUser(User user) {
+        if (user.getId() == null) { // Check if it's a new user
+            if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+                throw new DataIntegrityViolationException("Username already exists");
+            }
+            if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+                throw new DataIntegrityViolationException("Email already exists");
+            }
+        } else { // Check if it's an update
+            Optional<User> existingUserByUsername = userRepository.findByUsername(user.getUsername());
+            if (existingUserByUsername.isPresent() && !existingUserByUsername.get().getId().equals(user.getId())) {
+                throw new DataIntegrityViolationException("Username already exists");
+            }
+
+            Optional<User> existingUserByEmail = userRepository.findByEmail(user.getEmail());
+            if (existingUserByEmail.isPresent() && !existingUserByEmail.get().getId().equals(user.getId())) {
+                throw new DataIntegrityViolationException("Email already exists");
+            }
+        }
+
         return userRepository.save(user);
     }
 
@@ -45,28 +82,7 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    public Set<Role> getUserRolesForApplication(Long userId, Long applicationId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return user.getRoles().stream()
-                .filter(role -> role.getApplications().stream().anyMatch(app -> app.getId().equals(applicationId)))
-                .collect(Collectors.toSet());
-    }
-
-    public Set<Role> getUserRoles(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return user.getRoles();
-    }
-
-    public User registerUser(String username, String password) {
-        // Implement your registration logic here
-        // Create a new User object and set its properties
-        User newUser = new User();
-        newUser.setUsername(username);
-        // ... set other user properties ...
-        // Save the user to the database or perform other necessary actions
-        System.out.println("Registering user: " + username);
-        return newUser; // Return the created User object
+    public boolean existsById(Long id) {
+        return userRepository.existsById(id);
     }
 }

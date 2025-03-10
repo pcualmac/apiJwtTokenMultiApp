@@ -26,6 +26,7 @@ CREATE TABLE applications (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
 
+-- Add jwt_expiration column
 ALTER TABLE applications
 ADD COLUMN jwt_expiration BIGINT DEFAULT 3600000;
 
@@ -94,45 +95,3 @@ CREATE TABLE user_application_roles (
 CREATE INDEX idx_user_application_roles_user_id ON user_application_roles (user_id);
 CREATE INDEX idx_user_application_roles_application_id ON user_application_roles (application_id);
 CREATE INDEX idx_user_application_roles_role_id ON user_application_roles (role_id);
-
--- Insert into Applications
-INSERT INTO applications (application_name, secret_key) VALUES 
-('TestApp1', 'secret1'),
-('TestApp2', 'secret2'),
-('TestApp3', 'secret3');
-
--- Insert into Roles
-INSERT INTO roles (role_name) VALUES 
-('Role1'),
-('Role2'),
-('Role3');
-
--- Insert into Users
-INSERT INTO app_users (username, password, email, created_at, updated_at) VALUES 
-('user1', 'pass1', 'user1@example.com', NOW(), NOW()),
-('user2', 'pass2', 'user2@example.com', NOW(), NOW());
-
--- Now insert into the join tables
-
--- user_application_roles: Assign users roles in applications
-INSERT INTO user_application_roles (user_id, application_id, role_id) VALUES 
-(1, 1, 1), 
-(1, 1, 2), 
-(1, 2, 2), 
-(1, 2, 3), 
-(2, 2, 2), 
-(2, 3, 2);
-
--- user_roles: Assign roles to users
-INSERT INTO user_roles (user_id, role_id) VALUES 
-(1, 1), 
-(1, 2), 
-(2, 2);
-
--- application_roles: Assign roles to applications
-INSERT INTO application_roles (application_id, role_id) VALUES 
-(1, 1), 
-(1, 2), 
-(2, 2), 
-(2, 3), 
-(3, 1);

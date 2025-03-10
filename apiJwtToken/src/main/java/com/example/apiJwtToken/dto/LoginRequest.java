@@ -4,16 +4,11 @@ public class LoginRequest {
 
     private String username;
     private String password;
+    private String email; // Add this field
 
-    // Constructors
-    public LoginRequest() {}
+    // Constructors (if needed)
 
-    public LoginRequest(String username, String password) {
-        this.username = username;
-        this.password = password;
-    }
-
-    // Getters and setters (or use Lombok @Getter and @Setter)
+    // Getters and setters
     public String getUsername() {
         return username;
     }
@@ -28,5 +23,13 @@ public class LoginRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

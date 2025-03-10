@@ -1,109 +1,90 @@
 package com.example.apiJwtToken.model;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import com.example.apiJwtToken.repository.ApplicationRepository;
-import com.example.apiJwtToken.repository.RoleRepository;
-import com.example.apiJwtToken.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DataJpaTest
-@TestPropertySource(locations = "classpath:application-test.properties")
-@Sql(scripts = "classpath:schema2.sql", executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)
+class RoleTest {
 
-public class RoleTest {
+    private Role role;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private ApplicationRepository applicationRepository;
-
-    @Autowired
-    private RoleRepository roleRepository;
+    @BeforeEach
+    void setUp() {
+        role = new Role("ADMIN");
+    }
 
     @Test
-    public void testRoleCreation() {
-        Role role = new Role();
-        role.setRoleName("Admin");
-
-        role = roleRepository.save(role);
-        LocalDateTime expected = LocalDateTime.now();
-        LocalDateTime actual = role.getCreatedAt();
-
-        assertNotNull(role.getId());
-        assertEquals("Admin", role.getRoleName());
-        assertTrue(ChronoUnit.MILLIS.between(expected, actual) < 5);
+    void testConstructorAndGetters() {
+        assertEquals("ADMIN", role.getRoleName());
+        assertNotNull(role.getCreatedAt());
         assertNotNull(role.getUpdatedAt());
+        assertNotNull(role.getUsers());
+        assertNotNull(role.getApplications());
         assertTrue(role.getUsers().isEmpty());
         assertTrue(role.getApplications().isEmpty());
     }
 
     @Test
-    public void testRoleUpdate() {
-        Role role = new Role();
-        role.setRoleName("User");
-        role = roleRepository.save(role);
-
-        role.setRoleName("UpdatedUser");
-        role = roleRepository.save(role);
-
-        Role updatedRole = roleRepository.findById(role.getId()).orElse(null);
-        assertNotNull(updatedRole);
-        assertEquals("UpdatedUser", updatedRole.getRoleName());
+    void testSetters() {
+        role.setRoleName("USER");
+        assertEquals("USER", role.getRoleName());
     }
 
     @Test
-    public void testRoleManyToManyWithUserAndApplication() {
-        Role role = new Role();
+    void testPreUpdate() throws InterruptedException {
+        LocalDateTime initialUpdatedAt = role.getUpdatedAt();
+        Thread.sleep(100); // Simulate some time passing
+        role.preUpdate();
+        assertTrue(role.getUpdatedAt().isAfter(initialUpdatedAt));
+    }
+
+    @Test
+    void testAddAndRemoveUser() {
         User user = new User();
-        Application application = new Application();
+        role.addUser(user);
+        assertEquals(1, role.getUsers().size());
+        assertTrue(role.getUsers().contains(user));
 
-        role.setRoleName("AppRole");
-        role = roleRepository.save(role);
-    
-        user.setUsername("testUser");
-        user.setPassword("password");
-        user.setEmail("test@example.com");
-        user.setRoles(Set.of(role));
-    
-        role.getUsers().add(user); // Add user to role before saving user
-        userRepository.save(user);
-        roleRepository.flush();
-    
-        application.setApplicationName("AppWithRole");
-        application.setSecretKey("appSecret");
-        application.setRoles(Set.of(role));
-
-        role.getApplications().add(application);
-        applicationRepository.save(application);
-        applicationRepository.flush();
-
-        role = roleRepository.findById(role.getId()).orElse(null);
-        assertNotNull(role);
-        assertFalse(role.getUsers().isEmpty());
-        assertFalse(role.getApplications().isEmpty());
+        role.removeUser(user);
+        assertTrue(role.getUsers().isEmpty());
     }
-    
+
     @Test
-    public void testRoleDelete() {
-        Role role = new Role();
-        role.setRoleName("ToDelete");
-        role = roleRepository.save(role);
+    void testAddAndRemoveApplication() {
+        Application application = new Application();
+        role.addApplication(application);
+        assertEquals(1, role.getApplications().size());
+        assertTrue(role.getApplications().contains(application));
 
-        roleRepository.delete(role);
+        role.removeApplication(application);
+        assertTrue(role.getApplications().isEmpty());
+    }
 
-        Role deletedRole = roleRepository.findById(role.getId()).orElse(null);
-        assertNull(deletedRole);
+    @Test
+    void testEqualsAndHashCode() {
+        Role role1 = new Role("ADMIN");
+        role1.setId(1L);
+        Role role2 = new Role("ADMIN");
+        role2.setId(1L);
+        Role role3 = new Role("USER");
+        role3.setId(2L);
+        Role role4 = new Role("ADMIN");
+        role4.setId(3L);
+
+        assertEquals(role1, role2);
+        assertNotEquals(role1, role3);
+        assertNotEquals(role1, role4);
+
+        assertEquals(role1.hashCode(), role2.hashCode());
+        assertNotEquals(role1.hashCode(), role3.hashCode());
+    }
+
+    @Test
+    void testEqualsWithNullAndDifferentClass() {
+        assertNotEquals(role, null);
+        assertNotEquals(role, "not a role");
     }
 }

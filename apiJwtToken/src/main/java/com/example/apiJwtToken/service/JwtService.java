@@ -1,11 +1,15 @@
 package com.example.apiJwtToken.service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.JwtParserBuilder;
+import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -15,7 +19,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 @Service
@@ -26,6 +32,8 @@ public class JwtService {
 
     @Value("${jwt.expiration}")
     private long jwtExpiration;
+
+    private final Set<String> invalidatedTokens = new HashSet<>(); // Add this line
 
     public String generateToken(UserDetails userDetails) {
         return generateToken(new HashMap<>(), userDetails);
@@ -44,12 +52,12 @@ public class JwtService {
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
             extractAllClaims(token);
-        } catch (io.jsonwebtoken.security.SignatureException e) {
+        } catch (SignatureException e) {
             System.out.println("Signature Exception Caught in isTokenValid");
             return false;
         }
 
-        if (isTokenExpired(token)) {
+        if (isTokenExpired(token) || isTokenInvalidated(token)) {
             return false;
         }
         final String username = extractUsername(token);
@@ -57,48 +65,70 @@ public class JwtService {
     }
 
     public String extractUsername(String token) {
-        String username = extractClaim(token, Claims::getSubject);
-        return username;
+        return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean validateToken(String token, UserDetails userDetails) {  // ✅ Add this method
+    public boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token) && !isTokenInvalidated(token));
     }
-    
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
-        T claim = claimsResolver.apply(claims);
-        System.out.println("Extracted Claim: " + claim);
-        return claim;
+        return claimsResolver.apply(claims);
     }
 
     private Claims extractAllClaims(String token) {
         try {
             return Jwts.parserBuilder()
-                .setSigningKey(getSignInKey())
-                .setAllowedClockSkewSeconds(5)  // Allow a 5-second clock skew
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        } catch (io.jsonwebtoken.security.SignatureException e) {
+                    .setSigningKey(getSignInKey())
+                    .setAllowedClockSkewSeconds(5)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (SignatureException e) {
             System.out.println("Invalid JWT signature.");
+            throw e;
+        } catch (MalformedJwtException e) {
+            System.out.println("Invalid JWT token.");
+            throw e;
+        } catch (ExpiredJwtException e) {
+            System.out.println("Expired JWT token.");
+            throw e;
+        } catch (UnsupportedJwtException e) {
+            System.out.println("Unsupported JWT token.");
+            throw e;
+        } catch (IllegalArgumentException e) {
+            System.out.println("JWT claims string is empty.");
             throw e;
         }
     }
 
     private Key getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
-        Key key = Keys.hmacShaKeyFor(keyBytes);
-        return key;
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public boolean isTokenExpired(String token) {
         Date expiration = extractClaim(token, Claims::getExpiration);
         ZonedDateTime expirationZDT = expiration.toInstant().atZone(ZoneOffset.UTC);
         ZonedDateTime nowZDT = ZonedDateTime.now(ZoneOffset.UTC);
-
-
         return expirationZDT.isBefore(nowZDT);
+    }
+
+    public String extractToken(HttpServletRequest request) {
+        String authorizationHeader = request.getHeader("Authorization");
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            return authorizationHeader.substring(7);
+        }
+        return null;
+    }
+
+    public void invalidateToken(String token) {
+        invalidatedTokens.add(token);
+    }
+
+    public boolean isTokenInvalidated(String token) {
+        return invalidatedTokens.contains(token);
     }
 }

@@ -15,25 +15,25 @@ services:
       - MYSQL_PASSWORD=rootpassword
     networks:
       - backend
-  # app:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: java_app
-  #   restart: always
-  #   working_dir: /app
-  #   command: ["java", "-jar", "apiJwtToken-0.0.1-SNAPSHOT.jar"]
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   environment:
-  #     - MYSQL_HOST=db
-  #     - MYSQL_USER=root
-  #     - MYSQL_PASSWORD=rootpassword
-  #   ports:
-  #     - "8080:8080"
-  #   networks:
-  #     - backend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: java_app
+    restart: always
+    working_dir: /app
+    command: ["java", "-jar", "apiJwtToken-0.0.1-SNAPSHOT.jar"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=rootpassword
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
   db:
     image: mysql:5.7
     container_name: mysql_db

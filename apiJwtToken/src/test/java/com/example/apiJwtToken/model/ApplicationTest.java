@@ -1,119 +1,116 @@
 package com.example.apiJwtToken.model;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
-
-import com.example.apiJwtToken.repository.ApplicationRepository;
-import com.example.apiJwtToken.repository.RoleRepository;
-import com.example.apiJwtToken.repository.UserRepository;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DataJpaTest
-@TestPropertySource(locations = "classpath:application-test.properties")
-@Sql(scripts = "classpath:schema2.sql", executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)
 public class ApplicationTest {
 
-    @Autowired
-    private UserRepository userRepository;
+    private Application application;
 
-    @Autowired
-    private ApplicationRepository applicationRepository;
-
-    @Autowired
-    private RoleRepository roleRepository;
+    @BeforeEach
+    void setUp() {
+        application = new Application("TestApp", "TestSecretKey");
+    }
 
     @Test
-    public void testApplicationCreation() {
-        Application application = new Application();
-        application.setApplicationName("MyApp");
-        application.setSecretKey("mySecret");
-
-        application = applicationRepository.save(application);
-        LocalDateTime expected = LocalDateTime.now();
-        LocalDateTime actual = application.getCreatedAt();
-
-        assertNotNull(application.getId());
-        assertEquals("MyApp", application.getApplicationName());
-        assertEquals("mySecret", application.getSecretKey());
-        assertTrue(ChronoUnit.MILLIS.between(expected, actual) < 5);
+    void testConstructorAndGetters() {
+        assertEquals("TestApp", application.getApplicationName());
+        assertEquals("TestSecretKey", application.getSecretKey());
+        assertNotNull(application.getCreatedAt());
         assertNotNull(application.getUpdatedAt());
+        assertEquals(3600000L, application.getJwtExpiration());
+        assertNotNull(application.getUsers());
+        assertNotNull(application.getRoles());
         assertTrue(application.getUsers().isEmpty());
         assertTrue(application.getRoles().isEmpty());
     }
 
     @Test
-    public void testApplicationUpdate() {
-        Application application = new Application();
-        application.setApplicationName("OldApp");
-        application.setSecretKey("oldSecret");
-        application = applicationRepository.save(application);
+    void testSetters() {
+        application.setApplicationName("NewAppName");
+        application.setSecretKey("NewSecretKey");
+        application.setJwtExpiration(7200000L);
 
-        application.setApplicationName("NewApp");
-        application.setSecretKey("newSecret");
-        application = applicationRepository.save(application);
-
-        Application updatedApplication = applicationRepository.findById(application.getId()).orElse(null);
-        assertNotNull(updatedApplication);
-        assertEquals("NewApp", updatedApplication.getApplicationName());
-        assertEquals("newSecret", updatedApplication.getSecretKey());
+        assertEquals("NewAppName", application.getApplicationName());
+        assertEquals("NewSecretKey", application.getSecretKey());
+        assertEquals(7200000L, application.getJwtExpiration());
     }
 
     @Test
-    public void testApplicationManyToManyWithUserAndRole() {
-        Application application = new Application();
-        application.setApplicationName("AppWithRole");
-        application.setSecretKey("appSecret");
-        application = applicationRepository.save(application);
-    
-        User user = new User();
-        user.setUsername("testUser");
-        user.setPassword("password");
-        user.setEmail("test@example.com");
-    
-        Role role = new Role();
-        role.setRoleName("AppRole");
-    
-        // ✅ Ensure collections are initialized before adding elements
-        user.setApplications(new HashSet<>());
-        role.setApplications(new HashSet<>());
-    
-        user.getApplications().add(application);
-        role.getApplications().add(application);
-    
-        application.getUsers().add(user);
-        application.getRoles().add(role);
-    
-        userRepository.save(user);
-        roleRepository.save(role);
-        applicationRepository.save(application);
-    
-        Application retrievedApp = applicationRepository.findById(application.getId()).orElse(null);
-        assertNotNull(retrievedApp);
-        assertFalse(retrievedApp.getUsers().isEmpty());
-        assertFalse(retrievedApp.getRoles().isEmpty());
+    void testPreUpdate() {
+        LocalDateTime initialUpdatedAt = application.getUpdatedAt();
+        application.preUpdate();
+        LocalDateTime updatedUpdatedAt = application.getUpdatedAt();
+
+        assertTrue(updatedUpdatedAt.isAfter(initialUpdatedAt));
     }
-    
-    
+
     @Test
-    public void testApplicationDelete() {
-        Application application = new Application();
-        application.setApplicationName("ToDelete");
-        application.setSecretKey("secretToDelete");
-        application = applicationRepository.save(application);
+    void testAddAndRemoveUser() {
+        User user1 = new User();
+        User user2 = new User();
 
-        applicationRepository.delete(application);
+        application.addUser(user1);
+        application.addUser(user2);
 
-        Application deletedApplication = applicationRepository.findById(application.getId()).orElse(null);
-        assertNull(deletedApplication);
+        assertEquals(2, application.getUsers().size());
+        assertTrue(application.getUsers().contains(user1));
+        assertTrue(application.getUsers().contains(user2));
+
+        application.removeUser(user1);
+
+        assertEquals(1, application.getUsers().size());
+        assertFalse(application.getUsers().contains(user1));
+        assertTrue(application.getUsers().contains(user2));
+    }
+
+    @Test
+    void testAddAndRemoveRole() {
+        Role role1 = new Role("role1");
+        role1.setId(1L);
+        Role role2 = new Role("role2");
+        role2.setId(2L);
+
+        application.addRole(role1);
+        application.addRole(role2);
+
+        assertEquals(2, application.getRoles().size());
+        assertTrue(application.getRoles().contains(role1));
+        assertTrue(application.getRoles().contains(role2));
+
+        application.removeRole(role1);
+
+        assertEquals(1, application.getRoles().size());
+        assertFalse(application.getRoles().contains(role1));
+        assertTrue(application.getRoles().contains(role2));
+    }
+
+    @Test
+    void testEqualsAndHashCode() {
+        Application application1 = new Application("TestApp", "TestSecretKey");
+        Application application2 = new Application("TestApp", "TestSecretKey");
+        application1.setId(1L);
+        application2.setId(1L);
+
+        assertEquals(application1, application2);
+        assertEquals(application1.hashCode(), application2.hashCode());
+
+        application2.setId(2L);
+        assertNotEquals(application1, application2);
+        assertNotEquals(application1.hashCode(), application2.hashCode());
+    }
+
+    @Test
+    void testEmptyConstructor(){
+        Application emptyApplication = new Application();
+        assertNotNull(emptyApplication.getUsers());
+        assertNotNull(emptyApplication.getRoles());
+        assertNotNull(emptyApplication.getCreatedAt());
+        assertNotNull(emptyApplication.getUpdatedAt());
+        assertEquals(3600000L, emptyApplication.getJwtExpiration());
     }
 }

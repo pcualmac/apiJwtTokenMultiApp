@@ -1,67 +1,76 @@
 package com.example.apiJwtToken.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.Set;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
-
 @Entity
-@Table(name = "Roles")
-@Data
+@Table(name = "roles")
+@Getter
+@Setter
+@EqualsAndHashCode(of = {"id", "roleName"})
 public class Role {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "role_name", nullable = false)
     private String roleName;
-    @Column(nullable = false, updatable = false)
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @PrePersist
-    protected void onCreate() {
+    @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+    private List<User> users;
+
+    @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+    private List<Application> applications;
+
+    // Constructors
+    public Role() {
+        this.users = new ArrayList<>();
+        this.applications = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
+    public Role(String roleName) {
+        this();
+        this.roleName = roleName;
+    }
+
+    // Lifecycle callbacks to update updatedAt
     @PreUpdate
-    protected void onUpdate() {
+    public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    // Helper methods for adding/removing users and applications
+    public void addUser(User user) {
+        this.users.add(user);
     }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
+    public void removeUser(User user) {
+        this.users.remove(user);
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
+    public void addApplication(Application application) {
+        this.applications.add(application);
     }
 
-    @ManyToMany
-    @JoinTable(
-            name = "User_Roles",
-            joinColumns = {@JoinColumn(name = "role_id")},
-            inverseJoinColumns = {@JoinColumn(name = "user_id")}
-    )
-    private Set<User> users = new HashSet<>();
-
-    @ManyToMany(mappedBy = "roles")
-    private Set<Application> applications = new HashSet<>();  // ✅ Initialize collection
+    public void removeApplication(Application application) {
+        this.applications.remove(application);
+    }
 
     @Override
     public boolean equals(Object o) {

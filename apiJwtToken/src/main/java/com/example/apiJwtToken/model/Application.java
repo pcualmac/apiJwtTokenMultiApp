@@ -1,25 +1,21 @@
 package com.example.apiJwtToken.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.Set;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
-@Table(name = "Applications")
-@Data
+@Table(name = "applications")
+@Getter
+@Setter
+@EqualsAndHashCode(of = "id")
 public class Application {
-    public Application() {
-        this.users = new HashSet<>();
-        this.roles = new HashSet<>();
-    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,35 +27,61 @@ public class Application {
     @Column(name = "secret_key", nullable = false)
     private String secretKey;
 
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "jwt_expiration", nullable = false)
+    private Long jwtExpiration = 3600000L; // Default to 1 hour (3600000 milliseconds)
 
-    @ManyToMany(mappedBy = "applications")
-    private Set<User> users = new HashSet<>();
+    @ManyToMany(mappedBy = "applications", fetch = FetchType.LAZY)
+    private List<User> users;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "Application_Roles",
-            joinColumns = {@JoinColumn(name = "application_id")},
-            inverseJoinColumns = {@JoinColumn(name = "role_id")}
+            name = "application_roles",
+            joinColumns = @JoinColumn(name = "application_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
     )
-    private Set<Role> roles = new HashSet<>();
+    private List<Role> roles;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+    // Constructors
+    public Application() {
+        this.users = new ArrayList<>();
+        this.roles = new ArrayList<>();
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
+    public Application(String applicationName, String secretKey) {
+        this();
+        this.applicationName = applicationName;
+        this.secretKey = secretKey;
+    }
+
+    // Lifecycle callbacks to update updatedAt
     @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // Helper methods for adding/removing users and roles
+    public void addUser(User user) {
+        this.users.add(user);
+    }
+
+    public void removeUser(User user) {
+        this.users.remove(user);
+    }
+
+    public void addRole(Role role) {
+        this.roles.add(role);
+    }
+
+    public void removeRole(Role role) {
+        this.roles.remove(role);
     }
 
     @Override
@@ -67,7 +89,7 @@ public class Application {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Application that = (Application) o;
-        return Objects.equals(id, that.id);
+        return id != null && id.equals(that.id);
     }
 
     @Override

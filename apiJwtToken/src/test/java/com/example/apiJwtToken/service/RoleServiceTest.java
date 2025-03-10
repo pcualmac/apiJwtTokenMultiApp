@@ -1,5 +1,6 @@
 package com.example.apiJwtToken.service;
 
+import com.example.apiJwtToken.model.Application;
 import com.example.apiJwtToken.model.Role;
 import com.example.apiJwtToken.model.User;
 import com.example.apiJwtToken.repository.RoleRepository;
@@ -9,14 +10,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-public class RoleServiceTest {
+class RoleServiceTest {
 
     @Mock
     private RoleRepository roleRepository;
@@ -25,155 +26,147 @@ public class RoleServiceTest {
     private RoleService roleService;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    public void testGetAllRoles() {
-        Role role1 = new Role();
-        Role role2 = new Role();
-        List<Role> roleList = Arrays.asList(role1, role2);
+    void getRoleById_shouldReturnRole_whenRoleExists() {
+        Long roleId = 1L;
+        Role role = new Role();
+        role.setId(roleId);
+        when(roleRepository.findById(roleId)).thenReturn(Optional.of(role));
 
-        when(roleRepository.findAll()).thenReturn(roleList);
+        Optional<Role> result = roleService.getRoleById(roleId);
+
+        assertTrue(result.isPresent());
+        assertEquals(roleId, result.get().getId());
+        verify(roleRepository, times(1)).findById(roleId);
+    }
+
+    @Test
+    void getRoleById_shouldReturnEmptyOptional_whenRoleDoesNotExist() {
+        Long roleId = 1L;
+        when(roleRepository.findById(roleId)).thenReturn(Optional.empty());
+
+        Optional<Role> result = roleService.getRoleById(roleId);
+
+        assertFalse(result.isPresent());
+        verify(roleRepository, times(1)).findById(roleId);
+    }
+
+    @Test
+    void getUsersByRoleId_shouldReturnListOfUsers() {
+        Long roleId = 1L;
+        List<User> users = Arrays.asList(new User(), new User());
+        when(roleRepository.findUsersByRoleId(roleId)).thenReturn(users);
+
+        List<User> result = roleService.getUsersByRoleId(roleId);
+
+        assertEquals(2, result.size());
+        verify(roleRepository, times(1)).findUsersByRoleId(roleId);
+    }
+
+    @Test
+    void getApplicationsByRoleId_shouldReturnListOfApplications() {
+        Long roleId = 1L;
+        List<Application> applications = Arrays.asList(new Application(), new Application());
+        when(roleRepository.findApplicationsByRoleId(roleId)).thenReturn(applications);
+
+        List<Application> result = roleService.getApplicationsByRoleId(roleId);
+
+        assertEquals(2, result.size());
+        verify(roleRepository, times(1)).findApplicationsByRoleId(roleId);
+    }
+
+    @Test
+    void getRolesByApplicationId_shouldReturnListOfRoles() {
+        Long applicationId = 1L;
+        List<Role> roles = Arrays.asList(new Role(), new Role());
+        when(roleRepository.findRolesByApplicationId(applicationId)).thenReturn(roles);
+
+        List<Role> result = roleService.getRolesByApplicationId(applicationId);
+
+        assertEquals(2, result.size());
+        verify(roleRepository, times(1)).findRolesByApplicationId(applicationId);
+    }
+
+    @Test
+    void getRoleByRoleName_shouldReturnRole() {
+        String roleName = "ADMIN";
+        Role role = new Role();
+        role.setRoleName(roleName);
+        when(roleRepository.findByRoleName(roleName)).thenReturn(role);
+
+        Role result = roleService.getRoleByRoleName(roleName);
+
+        assertEquals(roleName, result.getRoleName());
+        verify(roleRepository, times(1)).findByRoleName(roleName);
+    }
+
+    @Test
+    void getAllRoleNames_shouldReturnListOfRoleNames() {
+        List<String> roleNames = Arrays.asList("ADMIN", "USER");
+        when(roleRepository.findAllRoleNames()).thenReturn(roleNames);
+
+        List<String> result = roleService.getAllRoleNames();
+
+        assertEquals(2, result.size());
+        assertEquals(roleNames, result);
+        verify(roleRepository, times(1)).findAllRoleNames();
+    }
+
+    @Test
+    void getAllRoles_shouldReturnListOfRoles() {
+        List<Role> roles = Arrays.asList(new Role(), new Role());
+        when(roleRepository.findAll()).thenReturn(roles);
 
         List<Role> result = roleService.getAllRoles();
 
         assertEquals(2, result.size());
+        assertEquals(roles, result);
         verify(roleRepository, times(1)).findAll();
     }
 
     @Test
-    public void testGetRoleById() {
+    void saveRole_shouldSaveRoleAndReturnSavedRole() {
         Role role = new Role();
-        role.setId(1L);
-
-        when(roleRepository.findById(1L)).thenReturn(Optional.of(role));
-
-        Optional<Role> result = roleService.getRoleById(1L);
-
-        assertTrue(result.isPresent());
-        assertEquals(1L, result.get().getId());
-        verify(roleRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    public void testGetRoleByName() {
-        Role role = new Role();
-        role.setRoleName("Admin");
-
-        when(roleRepository.findByRoleName("Admin")).thenReturn(Optional.of(role));
-
-        Optional<Role> result = roleService.getRoleByName("Admin");
-
-        assertTrue(result.isPresent());
-        assertEquals("Admin", result.get().getRoleName());
-        verify(roleRepository, times(1)).findByRoleName("Admin");
-    }
-
-    @Test
-    public void testSaveRole() {
-        Role role = new Role();
-
         when(roleRepository.save(role)).thenReturn(role);
 
         Role result = roleService.saveRole(role);
 
-        assertNotNull(result);
+        assertEquals(role, result);
         verify(roleRepository, times(1)).save(role);
     }
 
     @Test
-    public void testUpdateRole() {
-        Role existingRole = new Role();
-        existingRole.setId(1L);
-        existingRole.setRoleName("OldRole");
+    void deleteRole_shouldDeleteRole() {
+        Long roleId = 1L;
 
-        Role updatedRole = new Role();
-        updatedRole.setRoleName("NewRole");
-        updatedRole.setUpdatedAt(LocalDateTime.now());
+        roleService.deleteRole(roleId);
 
-        when(roleRepository.findById(1L)).thenReturn(Optional.of(existingRole));
-        when(roleRepository.save(any(Role.class))).thenReturn(updatedRole);
-
-        Role result = roleService.updateRole(1L, updatedRole);
-
-        assertEquals("NewRole", result.getRoleName());
-        verify(roleRepository, times(1)).findById(1L);
-        verify(roleRepository, times(1)).save(any(Role.class));
+        verify(roleRepository, times(1)).deleteById(roleId);
     }
 
     @Test
-    public void testDeleteRole() {
-        roleService.deleteRole(1L);
-        verify(roleRepository, times(1)).deleteById(1L);
+    void existsById_shouldReturnTrue_whenRoleExists() {
+        Long roleId = 1L;
+        when(roleRepository.existsById(roleId)).thenReturn(true);
+
+        boolean result = roleService.existsById(roleId);
+
+        assertTrue(result);
+        verify(roleRepository, times(1)).existsById(roleId);
     }
 
     @Test
-    public void testGetUsersForRole() {
-        Role role = new Role();
-        role.setId(1L);
-        Set<User> users = new HashSet<>();
-        User user = new User();
-        String uniqueUsername = "testUser" + System.currentTimeMillis(); // Generate unique username
-        String uniqueEmail = "test" + System.currentTimeMillis()+"@example.com"; // Generate unique username
-        user.setUsername(uniqueUsername);
-        user.setPassword("password");
-        user.setEmail(uniqueEmail);
-        User user2 = new User();
-        String uniqueUsername2 = "testUser" + System.currentTimeMillis(); // Generate unique username
-        String uniqueEmail2 = "test" + System.currentTimeMillis()+"@example.com"; // Generate unique username
-        user2.setUsername(uniqueUsername2);
-        user2.setPassword("password");
-        user2.setEmail(uniqueEmail2);
-        users.add(user);
-        users.add(user2);
-        // users.add(new User());
-        role.setUsers(users);
+    void existsById_shouldReturnFalse_whenRoleDoesNotExist() {
+        Long roleId = 1L;
+        when(roleRepository.existsById(roleId)).thenReturn(false);
 
-        assertEquals(2, users.size());
+        boolean result = roleService.existsById(roleId);
 
-        when(roleRepository.findById(1L)).thenReturn(Optional.of(role));
-
-        Set<User> result = roleService.getUsersForRole(1L);
-
-        assertEquals(2, result.size());
-        verify(roleRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    public void testGetRoleByIdNotFound() {
-        when(roleRepository.findById(1L)).thenReturn(Optional.empty());
-
-        Optional<Role> result = roleService.getRoleById(1L);
-
-        assertFalse(result.isPresent());
-        verify(roleRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    public void testGetRoleByNameNotFound() {
-        when(roleRepository.findByRoleName("nonexistent")).thenReturn(Optional.empty());
-
-        Optional<Role> result = roleService.getRoleByName("nonexistent");
-
-        assertFalse(result.isPresent());
-        verify(roleRepository, times(1)).findByRoleName("nonexistent");
-    }
-
-    @Test
-    public void testUpdateRoleNotFound() {
-        when(roleRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(RuntimeException.class, () -> roleService.updateRole(1L, new Role()));
-        verify(roleRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    public void testGetUsersForRoleNotFound() {
-        when(roleRepository.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(RuntimeException.class, () -> roleService.getUsersForRole(1L));
-        verify(roleRepository, times(1)).findById(1L);
+        assertFalse(result);
+        verify(roleRepository, times(1)).existsById(roleId);
     }
 }
