@@ -2,6 +2,7 @@ package com.example.apiJwtToken.controller;
 
 import com.example.apiJwtToken.service.JwtAppService;
 import com.example.apiJwtToken.service.JwtService;
+import com.example.apiJwtToken.service.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -25,11 +26,16 @@ public class LogoutController {
     private final SecurityContextLogoutHandler logoutHandler;
     private final JwtAppService jwtAppService;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public LogoutController(SecurityContextLogoutHandler logoutHandler, JwtAppService jwtAppService, JwtService jwtService) {
+    public LogoutController(SecurityContextLogoutHandler logoutHandler, 
+                            JwtAppService jwtAppService, 
+                            JwtService jwtService,
+                            TokenBlacklistService tokenBlacklistService) {
         this.logoutHandler = logoutHandler;
         this.jwtAppService = jwtAppService;
         this.jwtService = jwtService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @GetMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -43,7 +49,8 @@ public class LogoutController {
             if (token != null) {
                 try {
                     jwtService.invalidateToken(token); // Example method to invalidate the token
-                    logger.debug("Token invalidated successfully.");
+                    tokenBlacklistService.blacklistTokenPermanently(token); // Add token to Redis blacklist
+                    logger.debug("Token invalidated and blacklisted successfully.");
                 } catch (Exception e) {
                     logger.error("Error invalidating token: {}", e.getMessage());
                 }
@@ -63,9 +70,10 @@ public class LogoutController {
             if (token != null) {
                 try {
                     // jwtAppService.invalidateAppToken(token, appName); // Example method to invalidate app-specific token
-                    logger.debug("Application specific token invalidated successfully for {}", appName);
+                    tokenBlacklistService.blacklistTokenPermanently(token);
+                    logger.debug("Application-specific token invalidated and blacklisted successfully for {}", appName);
                 } catch (Exception e) {
-                    logger.error("Error invalidating application specific token for {}: {}", appName, e.getMessage());
+                    logger.error("Error invalidating application-specific token for {}: {}", appName, e.getMessage());
                 }
             }
         }
