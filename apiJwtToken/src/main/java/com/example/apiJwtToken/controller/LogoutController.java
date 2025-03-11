@@ -81,7 +81,7 @@ public class LogoutController {
             String token = extractTokenFromRequestApp(request);
             if (token != null) {
                 try {
-                    jwtAppService.isTokenInvalidated(token);
+                    jwtAppService.invalidateToken(token);
                     tokenBlacklistService.blacklistTokenPermanently(token);
                     logger.debug("Application-specific token invalidated and blacklisted successfully for {}", applicationName);
                 } catch (Exception e) {
