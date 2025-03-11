@@ -58,6 +58,7 @@ public class LogoutController {
                     jwtService.invalidateToken(token); // Example method to invalidate the token
                     tokenBlacklistService.blacklistTokenPermanently(token); // Add token to Redis blacklist
                     logger.debug("Token invalidated and blacklisted successfully.");
+                    return ResponseEntity.ok("Logged out successfully");
                 } catch (Exception e) {
                     logger.error("Error invalidating token: {}", e.getMessage());
                 }
@@ -67,7 +68,7 @@ public class LogoutController {
     }
 
     @GetMapping(value = "/{applicationName}/logout", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> appLogout(@PathVariable String appName, HttpServletRequest request, HttpServletResponse response,  @PathVariable String applicationName) {
+    public ResponseEntity<String> appLogout(HttpServletRequest request, HttpServletResponse response,  @PathVariable String applicationName) {
         List<String> applications = applicationService.findAllApplicationNames();
         if (!applications.contains(applicationName)) {
             return ResponseEntity.badRequest().body("Application name is not valid");
@@ -80,15 +81,15 @@ public class LogoutController {
             String token = extractTokenFromRequestApp(request);
             if (token != null) {
                 try {
-                    // jwtAppService.invalidateAppToken(token, appName); // Example method to invalidate app-specific token
+                    jwtAppService.isTokenInvalidated(token);
                     tokenBlacklistService.blacklistTokenPermanently(token);
-                    logger.debug("Application-specific token invalidated and blacklisted successfully for {}", appName);
+                    logger.debug("Application-specific token invalidated and blacklisted successfully for {}", applicationName);
                 } catch (Exception e) {
-                    logger.error("Error invalidating application-specific token for {}: {}", appName, e.getMessage());
+                    logger.error("Error invalidating application-specific token for {}: {}", applicationName, e.getMessage());
                 }
             }
         }
-        return ResponseEntity.ok("Logged out successfully from " + appName);
+        return ResponseEntity.ok("Logged out successfully from " + applicationName);
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {

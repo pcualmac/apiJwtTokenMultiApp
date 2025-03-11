@@ -1,6 +1,7 @@
 package com.example.apiJwtToken.controller;
 
 import com.example.apiJwtToken.dto.LoginRequest;
+import com.example.apiJwtToken.service.ApplicationService;
 import com.example.apiJwtToken.service.JwtAppService;
 import com.example.apiJwtToken.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+
+import java.util.List;
+
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,6 +45,9 @@ public class LoginControllerTest {
 
     @InjectMocks
     private LoginController loginController;
+
+    @Mock
+    private ApplicationService applicationService;
 
     private LoginRequest loginRequest;
     private UserDetails userDetails;
@@ -78,9 +85,14 @@ public class LoginControllerTest {
     @Test
     void appLogin_success() {
         String appName = "testApp";
+        loginRequest = new LoginRequest();
+        loginRequest.setUsername("testUser");
+        loginRequest.setPassword("password"); 
+        loginRequest.setEmail("testUser@gmail.com");
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
         when(userDetailsService.loadUserByUsername(loginRequest.getUsername())).thenReturn(userDetails);
         when(jwtAppService.generateToken(userDetails, appName)).thenReturn("appTestToken");
+        when(applicationService.findAllApplicationNames()).thenReturn(List.of("testApp")); // Add this line
 
         ResponseEntity<String> response = loginController.appLogin(loginRequest, appName);
 
@@ -92,6 +104,7 @@ public class LoginControllerTest {
     void appLogin_invalidCredentials() {
         String appName = "testApp";
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenThrow(new BadCredentialsException("Invalid credentials"));
+        when(applicationService.findAllApplicationNames()).thenReturn(List.of("testApp")); // Add this line
 
         assertThrows(BadCredentialsException.class, () -> loginController.appLogin(loginRequest, appName));
     }

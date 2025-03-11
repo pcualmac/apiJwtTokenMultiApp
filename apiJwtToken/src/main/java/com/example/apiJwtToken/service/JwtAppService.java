@@ -15,13 +15,17 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 @Service
 public class JwtAppService {
 
     private final ApplicationService applicationService;
+    
+    private final Set<String> invalidatedTokens = new HashSet<>(); 
 
     @Autowired
     public JwtAppService(ApplicationService applicationService) {
@@ -136,5 +140,9 @@ public class JwtAppService {
         return applicationService.findByName(applicationName)
                 .map(app -> app.getId())
                 .orElse(null);
+    }
+
+    public boolean isTokenInvalidated(String token) {
+        return invalidatedTokens.contains(token);
     }
 }

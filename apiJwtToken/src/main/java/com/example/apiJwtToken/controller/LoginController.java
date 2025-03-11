@@ -55,7 +55,7 @@ public class LoginController {
     }
 
     @PostMapping("/{applicationName}/login")
-    public ResponseEntity<String> appLogin(@RequestBody LoginRequest loginRequest, @PathVariable String appName,  @PathVariable String applicationName) {
+    public ResponseEntity<String> appLogin(@RequestBody LoginRequest loginRequest, @PathVariable String applicationName) {
         List<String> applications = applicationService.findAllApplicationNames();
         if (!applications.contains(applicationName)) {
             return ResponseEntity.badRequest().body("Application name is not valid");
@@ -66,7 +66,7 @@ public class LoginController {
 
         if (authentication.isAuthenticated()) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
-            String token = jwtAppService.generateToken(userDetails, appName);
+            String token = jwtAppService.generateToken(userDetails, applicationName);
             return ResponseEntity.ok(token);
         } else {
             return ResponseEntity.badRequest().body("Invalid credentials");
