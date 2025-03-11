@@ -5,6 +5,9 @@ import com.example.apiJwtToken.service.JwtService;
 import com.example.apiJwtToken.service.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.example.apiJwtToken.service.ApplicationService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -27,15 +31,18 @@ public class LogoutController {
     private final JwtAppService jwtAppService;
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final ApplicationService applicationService;
 
     public LogoutController(SecurityContextLogoutHandler logoutHandler, 
                             JwtAppService jwtAppService, 
                             JwtService jwtService,
-                            TokenBlacklistService tokenBlacklistService) {
+                            TokenBlacklistService tokenBlacklistService,
+                            ApplicationService applicationService) {
         this.logoutHandler = logoutHandler;
         this.jwtAppService = jwtAppService;
         this.jwtService = jwtService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.applicationService = applicationService;
     }
 
     @GetMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -59,8 +66,12 @@ public class LogoutController {
         return ResponseEntity.ok("Logged out successfully");
     }
 
-    @GetMapping(value = "/{appName}/logout", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> appLogout(@PathVariable String appName, HttpServletRequest request, HttpServletResponse response) {
+    @GetMapping(value = "/{applicationName}/logout", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> appLogout(@PathVariable String appName, HttpServletRequest request, HttpServletResponse response,  @PathVariable String applicationName) {
+        List<String> applications = applicationService.findAllApplicationNames();
+        if (!applications.contains(applicationName)) {
+            return ResponseEntity.badRequest().body("Application name is not valid");
+        }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         logger.debug("Authentication object: {}", authentication);
 

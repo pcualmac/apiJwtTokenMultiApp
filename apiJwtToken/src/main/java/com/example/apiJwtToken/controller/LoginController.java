@@ -3,6 +3,10 @@ package com.example.apiJwtToken.controller;
 import com.example.apiJwtToken.dto.LoginRequest;
 import com.example.apiJwtToken.service.JwtAppService;
 import com.example.apiJwtToken.service.JwtService;
+import com.example.apiJwtToken.service.ApplicationService;
+
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,16 +24,19 @@ public class LoginController {
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final JwtAppService jwtAppService;
+    private final ApplicationService applicationService;
 
     @Autowired
     public LoginController(AuthenticationManager authenticationManager,
                            UserDetailsService userDetailsService,
                            JwtService jwtService,
-                           JwtAppService jwtAppService) {
+                           JwtAppService jwtAppService,
+                           ApplicationService applicationService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
         this.jwtAppService = jwtAppService;
+        this.applicationService = applicationService;
     }
 
     @PostMapping("/login")
@@ -47,8 +54,12 @@ public class LoginController {
         }
     }
 
-    @PostMapping("/{appName}/login")
-    public ResponseEntity<String> appLogin(@RequestBody LoginRequest loginRequest, @PathVariable String appName) {
+    @PostMapping("/{applicationName}/login")
+    public ResponseEntity<String> appLogin(@RequestBody LoginRequest loginRequest, @PathVariable String appName,  @PathVariable String applicationName) {
+        List<String> applications = applicationService.findAllApplicationNames();
+        if (!applications.contains(applicationName)) {
+            return ResponseEntity.badRequest().body("Application name is not valid");
+        }
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
         );
