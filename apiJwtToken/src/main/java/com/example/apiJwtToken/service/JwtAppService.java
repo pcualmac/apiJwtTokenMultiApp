@@ -6,6 +6,8 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,9 @@ import java.util.function.Function;
 
 @Service
 public class JwtAppService {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAppService.class);
+
 
     private final ApplicationService applicationService;
     
@@ -73,6 +78,9 @@ public class JwtAppService {
         if (isTokenExpired(token, applicationName)) {
             return false;
         }
+        if (isTokenInvalidated(token)) {
+            return false;
+        }
         final String username = extractUsername(token, applicationName);
         return username.equals(userDetails.getUsername());
     }
@@ -82,8 +90,14 @@ public class JwtAppService {
     }
 
     public boolean validateToken(String token, UserDetails userDetails, String applicationName) {
+        logger.debug("Validating token for application: {}, user: {}", applicationName, userDetails.getUsername());
         final String username = extractUsername(token, applicationName);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token, applicationName));
+        logger.debug("(username.equals(userDetails.getUsername()) : {}", username.equals(userDetails.getUsername()));
+        logger.debug("!isTokenExpired(token, applicationName): {}", !isTokenExpired(token, applicationName));
+        logger.debug("!isTokenInvalidated(token): {}", !isTokenInvalidated(token));
+        boolean isValid = (username.equals(userDetails.getUsername()) && !isTokenExpired(token, applicationName) && !isTokenInvalidated(token));
+        logger.debug("Token validation result: {}", isValid);
+        return isValid;
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver, String applicationName) {
@@ -144,5 +158,9 @@ public class JwtAppService {
 
     public boolean isTokenInvalidated(String token) {
         return invalidatedTokens.contains(token);
+    }
+
+    public void invalidateToken(String token) {
+        invalidatedTokens.add(token);
     }
 }

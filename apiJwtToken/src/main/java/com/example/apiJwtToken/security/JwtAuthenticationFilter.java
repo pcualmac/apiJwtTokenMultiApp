@@ -40,29 +40,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
+        String requestURI = request.getRequestURI();
+
+        logger.debug("Request URI: {}", requestURI);
+        logger.debug("Authorization Header: {}", authHeader);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.debug("Authorization header missing or invalid, skipping JWT filter.");
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = authHeader.substring(7);
-        String requestURI = request.getRequestURI();
 
         try {
+            logger.debug("Extracted JWT Token: {}", token);
+
             if (requestURI.matches("/api/auth/logout")) {
+                logger.debug("Handling logout request.");
                 handleLogout(token);
             } else if (requestURI.matches("/api/auth/([^/]+)/logout")) {
+                logger.debug("Handling app logout request.");
                 handleAppLogout(token, requestURI);
             } else if (requestURI.matches("/api/auth/([^/]+)/([^/]+)/.*")) {
+                logger.debug("Handling app resource request.");
                 handleAppResource(token, requestURI);
             } else if (requestURI.matches("/api/auth/([^/]+)/$")) {
+                logger.debug("Handling app endpoint request.");
                 handleAppEndpoint(token, requestURI);
             } else {
+                logger.debug("Handling default request.");
                 handleDefault(token);
             }
         } catch (Exception e) {
-            logger.error("Authentication error: {}", e.getMessage());
+            logger.error("Authentication error: {}", e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
@@ -72,9 +83,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void handleLogout(String token) {
         String username = jwtService.extractUsername(token);
+        logger.debug("Logout: Extracted username: {}", username);
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.validateToken(token, userDetails)) {
+            boolean isValid = jwtService.validateToken(token, userDetails);
+            logger.debug("Logout: Token validation result: {}", isValid);
+            if (isValid) {
                 setAuthentication(userDetails);
             }
         }
@@ -83,9 +97,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void handleAppLogout(String token, String requestURI) {
         String appName = extractAppNameFromLogout(requestURI);
         String username = jwtAppService.extractUsername(token, appName);
+        logger.debug("App Logout: App Name: {}, Username: {}", appName, username);
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtAppService.validateToken(token, userDetails, appName)) {
+            boolean isValid = jwtAppService.validateToken(token, userDetails, appName);
+            logger.debug("App Logout: Token validation result: {}", isValid);
+            if (isValid) {
                 setAuthentication(userDetails);
             }
         }
@@ -94,9 +111,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void handleAppResource(String token, String requestURI) {
         String appName = extractAppName(requestURI);
         String username = jwtAppService.extractUsername(token, appName);
+        logger.debug("App Resource: App Name: {}, Username: {}", appName, username);
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtAppService.validateToken(token, userDetails, appName)) {
+            boolean isValid = jwtAppService.validateToken(token, userDetails, appName);
+            logger.debug("App Resource: Token validation result: {}", isValid);
+            if (isValid) {
                 setAuthentication(userDetails);
             }
         }
@@ -105,10 +125,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private void handleAppEndpoint(String token, String requestURI) {
         String appName = extractAppNameFromEndpoint(requestURI);
         String username = jwtService.extractUsername(token);
-        logger.info("appName: {}, username: {}", appName, username);
+        logger.debug("App Endpoint: App Name: {}, Username: {}", appName, username);
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.validateToken(token, userDetails)) {
+            boolean isValid = jwtService.validateToken(token, userDetails);
+            logger.debug("App Endpoint: Token validation result: {}", isValid);
+            if (isValid) {
                 setAuthentication(userDetails);
             }
         }
@@ -116,9 +138,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void handleDefault(String token) {
         String username = jwtService.extractUsername(token);
+        logger.debug("Default: Extracted username: {}", username);
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtService.validateToken(token, userDetails)) {
+            boolean isValid = jwtService.validateToken(token, userDetails);
+            logger.debug("Default: Token validation result: {}", isValid);
+            if (isValid) {
                 setAuthentication(userDetails);
             }
         }
