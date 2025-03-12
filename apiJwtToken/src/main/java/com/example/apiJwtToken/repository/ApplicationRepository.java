@@ -27,7 +27,10 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     List<User> findUsersByRoleAndApplicationId(Long roleId, Long applicationId);
 
     // Find all applications by application name
-    List<Application> findByApplicationName(String applicationName);
+    Optional<Application> findByApplicationName(String applicationName);
+
+    // Find first application by application name
+    Optional<Application> findFirstByApplicationName(String applicationName);
 
     // Get all application names
     @Query("SELECT a.applicationName FROM Application a")

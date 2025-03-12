@@ -1,5 +1,6 @@
 package com.example.apiJwtToken.controller;
 
+import com.example.apiJwtToken.dto.UserDto;
 import com.example.apiJwtToken.dto.UserRequest;
 import com.example.apiJwtToken.model.Application;
 import com.example.apiJwtToken.model.Role;
@@ -7,32 +8,23 @@ import com.example.apiJwtToken.model.User;
 import com.example.apiJwtToken.service.ApplicationService;
 import com.example.apiJwtToken.service.RoleService;
 import com.example.apiJwtToken.service.UserService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.MediaType;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.jdbc.Sql;
-import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
-@TestPropertySource(locations = "classpath:application-test.properties")
-@Sql(scripts = "classpath:schema2.sql", executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)
 public class UserControllerTest {
 
     @Mock
@@ -50,87 +42,174 @@ public class UserControllerTest {
     @InjectMocks
     private UserController userController;
 
-    private MockMvc mockMvc;
-    private ObjectMapper objectMapper;
-
     @BeforeEach
-    public void setup() {
-        mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
-        objectMapper = new ObjectMapper();
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    public void registerUser_success() throws Exception {
+    public void testRegisterUser_Success() {
         UserRequest userRequest = new UserRequest();
         userRequest.setUsername("testUser");
         userRequest.setPassword("password");
         userRequest.setEmail("test@example.com");
 
-        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userService.saveUser(any(User.class))).thenReturn(new User("testUser", "encodedPassword", "test@example.com"));
 
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(userRequest)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.content().string("User registered successfully: testUser"));
+        ResponseEntity<?> response = userController.registerUser(userRequest);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("User registered successfully: testUser", response.getBody());
+        verify(userService, times(1)).saveUser(any(User.class));
     }
 
     @Test
-    public void registerUser_failure() throws Exception {
+    public void testRegisterUser_Failure() {
         UserRequest userRequest = new UserRequest();
         userRequest.setUsername("testUser");
         userRequest.setPassword("password");
         userRequest.setEmail("test@example.com");
 
-        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
-        when(userService.saveUser(any(User.class))).thenThrow(new RuntimeException("Test exception"));
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userService.saveUser(any(User.class))).thenThrow(new RuntimeException("Username already exists"));
 
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(userRequest)))
-                .andExpect(MockMvcResultMatchers.status().isBadRequest())
-                .andExpect(MockMvcResultMatchers.content().string("Test exception"));
+        ResponseEntity<?> response = userController.registerUser(userRequest);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Username already exists", response.getBody());
+        verify(userService, times(1)).saveUser(any(User.class));
     }
 
     @Test
-    public void registerUserWithApplication_success() throws Exception {
-        String secretKey = "9IsJSJTM4mY/1BTIe67a5CMbrG/gfuzhqNMGFTL6q/w=";
+    public void testRegisterUserWithApplication_Success() {
         UserRequest userRequest = new UserRequest();
         userRequest.setUsername("testUser");
         userRequest.setPassword("password");
         userRequest.setEmail("test@example.com");
 
-        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("testApp"));
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp"));
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(new Application()));
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userService.saveUser(any(User.class))).thenReturn(new User("testUser", "encodedPassword", "test@example.com"));
-        when(applicationService.findByName("testApp")).thenReturn(Optional.of(new Application("testApp", secretKey)));
 
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/testApp/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(userRequest)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.content().string("User registered successfully with application: testUser"));
+        ResponseEntity<?> response = userController.registerUserWithApplication(userRequest, "TestApp");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("User registered successfully with application: testUser", response.getBody());
+        verify(userService, times(2)).saveUser(any(User.class));
     }
 
     @Test
-    public void registerUserWithApplicationAndRole_success() throws Exception {
-        String secretKey = "9IsJSJTM4mY/1BTIe67a5CMbrG/gfuzhqNMGFTL6q/w=";
+    public void testRegisterUserWithApplication_ApplicationNotFound() {
         UserRequest userRequest = new UserRequest();
         userRequest.setUsername("testUser");
         userRequest.setPassword("password");
         userRequest.setEmail("test@example.com");
 
-        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("testApp"));
-        when(userService.saveUser(any(User.class))).thenReturn(new User("testUser", "encodedPassword", "test@example.com"));
-        when(applicationService.findByName("testApp")).thenReturn(Optional.of(new Application("testApp", secretKey)));
-        when(roleService.findByName("testRole")).thenReturn(Optional.of(new Role("testRole")));
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp"));
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.empty());
 
-        mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/testApp/register/testRole")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(userRequest)))
-                .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.content().string("User registered successfully with application and role: testUser"));
+        ResponseEntity<?> response = userController.registerUserWithApplication(userRequest, "TestApp");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Application not found.", response.getBody());
+    }
+
+    @Test
+    public void testRegisterUserWithApplicationAndRole_Success() {
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername("testUser");
+        userRequest.setPassword("password");
+        userRequest.setEmail("test@example.com");
+
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp"));
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(new Application()));
+        when(roleService.findByName("ADMIN")).thenReturn(Optional.of(new Role()));
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userService.saveUser(any(User.class))).thenReturn(new User("testUser", "encodedPassword", "test@example.com"));
+
+        ResponseEntity<?> response = userController.registerUserWithApplicationAndRole(userRequest, "TestApp", "ADMIN");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("User registered successfully with application and role: testUser", response.getBody());
+        verify(userService, times(2)).saveUser(any(User.class));
+    }
+
+    @Test
+    public void testIndex_Success() {
+        List<User> users = Arrays.asList(new User("testUser", "encodedPassword", "test@example.com"));
+        when(userService.getAllUsers()).thenReturn(users);
+
+        ResponseEntity<List<UserDto>> response = userController.index();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+    }
+
+    @Test
+    public void testIndex_Failure() {
+        when(userService.getAllUsers()).thenThrow(new RuntimeException("Database error"));
+
+        ResponseEntity<List<UserDto>> response = userController.index();
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(null, response.getBody());
+    }
+
+    @Test
+    public void testIndexWithApplication_Success() {
+        Application app = new Application();
+        app.setApplicationName("TestApp");
+
+        User user = new User("testUser", "encodedPassword", "test@example.com");
+        user.addApplication(app);
+
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(app));
+        when(userService.getAllUsers()).thenReturn(Arrays.asList(user));
+
+        ResponseEntity<List<UserDto>> response = userController.index("TestApp");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+    }
+
+    @Test
+    public void testIndexWithApplication_ApplicationNotFound() {
+        when(applicationService.findByName("NonExistentApp")).thenReturn(Optional.empty());
+
+        ResponseEntity<List<UserDto>> response = userController.index("NonExistentApp");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(null, response.getBody());
+    }
+
+    @Test
+    public void testIndexWithApplication_UserNotInApplication() {
+        Application app = new Application();
+        app.setApplicationName("TestApp");
+
+        User user = new User("testUser", "encodedPassword", "test@example.com");
+
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(app));
+        when(userService.getAllUsers()).thenReturn(Arrays.asList(user));
+
+        ResponseEntity<List<UserDto>> response = userController.index("TestApp");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(0, response.getBody().size());
+    }
+    @Test
+    public void testIndexWithApplication_EmptyUserList() {
+        Application app = new Application();
+        app.setApplicationName("TestApp");
+
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(app));
+        when(userService.getAllUsers()).thenReturn(Collections.emptyList());
+
+        ResponseEntity<List<UserDto>> response = userController.index("TestApp");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(0, response.getBody().size());
     }
 }

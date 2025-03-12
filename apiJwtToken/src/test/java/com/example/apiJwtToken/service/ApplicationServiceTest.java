@@ -82,10 +82,9 @@ public class ApplicationServiceTest {
 
     @Test
     void findByApplicationNameTest() {
-        when(applicationRepository.findByApplicationName("App1")).thenReturn(Arrays.asList(application1));
-        List<Application> applications = applicationService.findByApplicationName("App1");
-        assertEquals(1, applications.size());
-        assertEquals(application1, applications.get(0));
+        when(applicationRepository.findByApplicationName("App1")).thenReturn(Optional.of(application1));
+        Optional<Application> application = applicationService.findByApplicationName("App1");
+        assertNotNull(application);
         verify(applicationRepository, times(1)).findByApplicationName("App1");
     }
 

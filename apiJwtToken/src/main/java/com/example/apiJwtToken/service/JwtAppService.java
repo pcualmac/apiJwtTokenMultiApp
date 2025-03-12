@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -19,18 +20,21 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import com.example.apiJwtToken.exception.ApplicationNotFoundException;
+import com.example.apiJwtToken.model.Application;
 
 @Service
 public class JwtAppService {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtAppService.class);
 
-
     private final ApplicationService applicationService;
-    
-    private final Set<String> invalidatedTokens = new HashSet<>(); 
+
+    private final Set<String> invalidatedTokens = new HashSet<>();
 
     @Autowired
     public JwtAppService(ApplicationService applicationService) {
@@ -46,11 +50,15 @@ public class JwtAppService {
     }
 
     public String generateToken(UserDetails userDetails, String applicationName) {
+        System.out.println("generateToken AAAA ");
         return generateToken(new HashMap<>(), userDetails, applicationName);
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails, String applicationName) {
+        System.out.println("generateToken BBB ");
         String secretKey = getSecretKeyFromApplication(applicationName);
+        System.out.println("secretKey: " + secretKey);
+        logger.debug("Secret Key used for verification: {}", secretKey);
         Long appId = getApplicationIdFromName(applicationName);
 
         if (secretKey == null || appId == null) {
@@ -59,6 +67,13 @@ public class JwtAppService {
 
         extraClaims.put(Claims.SUBJECT, userDetails.getUsername());
         extraClaims.put("applicationId", appId);
+
+        // Include roles in the JWT
+        Set<String> roles = userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
+        extraClaims.put("roles", roles);
+        logger.debug("Roles {}", roles);
         return Jwts.builder()
                 .setClaims(extraClaims)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
@@ -139,21 +154,21 @@ public class JwtAppService {
     }
 
     private String getSecretKeyFromApplication(String applicationName) {
-        return applicationService.findByName(applicationName)
+        return applicationService.findFirstByApplicationName(applicationName)
                 .flatMap(app -> applicationService.findSecretKeyById(app.getId()))
                 .orElse(null);
     }
-
-    private long getExpirationFromApplication(String applicationName) {
-        return applicationService.findByName(applicationName)
-                .flatMap(app -> applicationService.findJwtExpirationById(app.getId()))
-                .orElse(3600000L);
-    }
-
+    
     private Long getApplicationIdFromName(String applicationName) {
-        return applicationService.findByName(applicationName)
+        return applicationService.findFirstByApplicationName(applicationName)
                 .map(app -> app.getId())
                 .orElse(null);
+    }
+    
+    private long getExpirationFromApplication(String applicationName) {
+        return applicationService.findFirstByApplicationName(applicationName)
+                .flatMap(app -> applicationService.findJwtExpirationById(app.getId()))
+                .orElse(3600000L);
     }
 
     public boolean isTokenInvalidated(String token) {

@@ -32,7 +32,7 @@ public class ApplicationService {
         return applicationRepository.findUsersByRoleAndApplicationId(roleId, applicationId);
     }
 
-    public List<Application> findByApplicationName(String applicationName) {
+    public Optional<Application> findByApplicationName(String applicationName) {
         return applicationRepository.findByApplicationName(applicationName);
     }
 
@@ -56,6 +56,10 @@ public class ApplicationService {
         return applicationRepository.findById(id);
     }
 
+    public Optional<Application> findFirstByApplicationName(String applicationName) {
+        return applicationRepository.findFirstByApplicationName(applicationName);
+    }
+
     public Application saveApplication(Application application) {
         return applicationRepository.save(application);
     }
@@ -65,10 +69,10 @@ public class ApplicationService {
     }
 
     public Optional<Application> findByName(String applicationName) {
-        List<Application> applications = applicationRepository.findByApplicationName(applicationName);
-        if (applications != null && !applications.isEmpty()) {
-            return Optional.of(applications.get(0));
+        Optional<Application> application = applicationRepository.findByApplicationName(applicationName);
+        if (application != null ) {
+            return application;
         }
-        return Optional.empty();
+        return null;
     }
 }

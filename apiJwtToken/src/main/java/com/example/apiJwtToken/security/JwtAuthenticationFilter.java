@@ -39,9 +39,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
+        
         String requestURI = request.getRequestURI();
 
+        // Allow /error, /api/auth/login, /api/auth/register, and app register without JWT validation
+        if (requestURI.equals("/error") || requestURI.equals("/api/auth/login") || requestURI.equals("/api/auth/register") || requestURI.matches("/api/auth/([^/]+)/register/([^/]+)/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String authHeader = request.getHeader("Authorization");
         logger.debug("Request URI: {}", requestURI);
         logger.debug("Authorization Header: {}", authHeader);
 
@@ -68,6 +75,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } else if (requestURI.matches("/api/auth/([^/]+)/$")) {
                 logger.debug("Handling app endpoint request.");
                 handleAppEndpoint(token, requestURI);
+            } else if (requestURI.matches("/api/auth/([^/]+)/users/index") || requestURI.matches("/api/auth/users/index")) {
+                logger.debug("Handling user index request");
+                handleDefault(token);
             } else {
                 logger.debug("Handling default request.");
                 handleDefault(token);
@@ -150,10 +160,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void setAuthentication(UserDetails userDetails) {
+        logger.info("AAAAAAAA");
         Authentication authToken = new UsernamePasswordAuthenticationToken(
                 userDetails, null, userDetails.getAuthorities());
+        logger.info("BBBB");
         SecurityContextHolder.getContext().setAuthentication(authToken);
-        logger.info("Authentication set for user: {}", userDetails.getUsername());
+        logger.info("CCC");
+        // logger.info("Authentication set for user: {}", userDetails.getUsername());
     }
 
     private String extractAppName(String requestURI) {

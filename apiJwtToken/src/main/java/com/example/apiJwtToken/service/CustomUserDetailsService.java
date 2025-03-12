@@ -34,7 +34,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         List<Role> roles = user.getRoles();
         List<GrantedAuthority> authorities = (roles != null) ? roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleName())) // Add "ROLE_" prefix
+                .map(role -> new SimpleGrantedAuthority("ROLE_" +role.getRoleName())) // Add "ROLE_" prefix
                 .collect(Collectors.toList()) : Collections.emptyList(); // Handle null roles
 
         logger.info("User {} loaded with authorities: {}", username, authorities);

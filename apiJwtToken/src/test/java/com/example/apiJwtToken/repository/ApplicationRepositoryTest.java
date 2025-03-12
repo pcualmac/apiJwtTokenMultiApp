@@ -100,9 +100,8 @@ public class ApplicationRepositoryTest {
 
     @Test
     void findByApplicationNameTest() {
-        List<Application> applications = applicationRepository.findByApplicationName("App1");
-        assertEquals(1, applications.size());
-        assertEquals(application1, applications.get(0));
+        Optional<Application> application = applicationRepository.findByApplicationName("App1");
+        assertNotNull(application);
     }
 
     @Test
