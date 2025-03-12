@@ -21,8 +21,25 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
 ## Prerequisites
 
 * Java 17+
-* Maven or Gradle
-* A database (e.g., MySQL, PostgreSQL, H2)
+* Maven 
+* A database MySQL
+* For test H2
+
+## Role Action Table
+
+| Role          | Application          | Action                                  | Description                                                     |
+|---------------|----------------------|-----------------------------------------|-----------------------------------------------------------------|
+| Admin         | System/Global        | Manage Users                            | Full control of Users.                                          |
+| User          | System/Global        | List Users                              | Ability to list Users.                                          |
+| Admin         | System/Global        | Manage Applications                     | Full control of Applications.                                   |
+| User          | System/Global        | List Applications                       | Ability to list Applications.                                   |
+| Admin         | System/Global        | Manage Roles                            | Full control of Roles.                                          |
+| User          | System/Global        | List Roles                              | Ability to list Roles.                                          |
+| Admin         | Application-Specific | Manage Users                            | Full control of Users in a specific application.                |
+| User          | Application-Specific | List Users                              | Ability to list Users in a specific application.                |
+| Admin         | Application-Specific | Manage Roles                            | Full control of Roles in a specific application.                |
+| User          | Application-Specific | List Roles                              | Ability to list Roles in a specific application.                |
+
 
 ## Getting Started
 
@@ -87,21 +104,61 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
 
 ## Technologies Used
 
-* Spring Boot
-* Spring Security
-* Spring Data JPA
-* JSON Web Token (JWT)
-* (Your Database)
+* **Spring Boot:** 3.2.3 (via `spring-boot-starter-parent`)
+* **Spring Security:** For authentication and authorization.
+* **Spring Data JPA:** For database interaction and object-relational mapping.
+* **H2 Database:** (Runtime, for development/testing)
+* **MySQL Connector/J:** 8.0.33 (for MySQL database connectivity)
+* **Lombok:** For reducing boilerplate code.
+* **JSON Web Token (JWT):**
+    * `jjwt-api`: 0.11.5
+    * `jjwt-impl`: 0.11.5 (Runtime)
+    * `jjwt-jackson`: 0.11.5 (Runtime)
+* **Spring Validation:** For request body validation.
+* **Jakarta Validation API:** 3.0.2
+* **Jakarta Servlet API:** (Provided scope)
+* **Spring Data Redis:** For Redis integration.
+* **Spring Boot Test:** For unit and integration testing.
+* **Spring Security Test:** For testing Spring Security components.
+* **Jakarta Persistence API:** 3.1.0 (For JPA entities)
+* **Maven:** For build automation.
+* **Java:** 17
 
 ## Dependencies
 
-* `spring-boot-starter-web`
-* `spring-boot-starter-data-jpa`
-* `spring-boot-starter-security`
-* `io.jsonwebtoken:jjwt-api`
-* `io.jsonwebtoken:jjwt-impl`
-* `io.jsonwebtoken:jjwt-jackson`
-* (Your Database Driver)
+This project utilizes the following dependencies, managed by Maven:
+
+* **Spring Boot Starters:**
+    * `spring-boot-starter-data-jpa`: For JPA-based data access.
+    * `spring-boot-starter-security`: For Spring Security integration.
+    * `spring-boot-starter-web`: For building web applications.
+    * `spring-boot-starter-validation`: For request body validation.
+    * `spring-boot-starter-data-redis`: For Redis integration.
+    * `spring-boot-starter-test`: For unit and integration testing.
+
+* **Database Drivers:**
+    * `com.h2database:h2`: For in-memory H2 database (runtime scope).
+    * `com.mysql:mysql-connector-j`: For MySQL database connectivity.
+
+* **Lombok:**
+    * `org.projectlombok:lombok`: For reducing boilerplate code (optional).
+
+* **JSON Web Token (JWT):**
+    * `io.jsonwebtoken:jjwt-api`: JWT API.
+    * `io.jsonwebtoken:jjwt-impl`: JWT implementation (runtime scope).
+    * `io.jsonwebtoken:jjwt-jackson`: JWT Jackson integration (runtime scope).
+
+* **Jakarta Validation:**
+    * `jakarta.validation:jakarta.validation-api`: For validation annotations.
+
+* **Jakarta Servlet API:**
+    * `jakarta.servlet:jakarta.servlet-api`: For servlet functionality (provided scope).
+
+* **Jakarta Persistence API:**
+    * `jakarta.persistence:jakarta.persistence-api`: For JPA entity management.
+
+* **Spring Security Test:**
+    * `org.springframework.security:spring-security-test`: For Spring Security testing.
 
 ## Example usage with curl:
 
