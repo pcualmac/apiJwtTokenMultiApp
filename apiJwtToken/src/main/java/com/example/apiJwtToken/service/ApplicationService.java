@@ -1,5 +1,6 @@
 package com.example.apiJwtToken.service;
 
+import com.example.apiJwtToken.dto.ApplicationDto;
 import com.example.apiJwtToken.model.Application;
 import com.example.apiJwtToken.model.Role;
 import com.example.apiJwtToken.model.User;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
 
 @Service
 public class ApplicationService {
@@ -74,5 +77,11 @@ public class ApplicationService {
             return application;
         }
         return null;
+    }
+
+    public List<ApplicationDto> findAllApplicationDtos() {
+        return applicationRepository.findAll().stream()
+                .map(app -> new ApplicationDto(app.getId(), app.getApplicationName(), app.getCreatedAt()))
+                .collect(Collectors.toList());
     }
 }

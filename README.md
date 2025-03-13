@@ -126,39 +126,36 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
 
 ## Dependencies
 
-This project utilizes the following dependencies, managed by Maven:
+This project uses several dependencies for functionality such as JWT authentication, database integration, and security. Below is a list of the key dependencies:
 
-* **Spring Boot Starters:**
-    * `spring-boot-starter-data-jpa`: For JPA-based data access.
-    * `spring-boot-starter-security`: For Spring Security integration.
-    * `spring-boot-starter-web`: For building web applications.
-    * `spring-boot-starter-validation`: For request body validation.
-    * `spring-boot-starter-data-redis`: For Redis integration.
-    * `spring-boot-starter-test`: For unit and integration testing.
+### Spring Boot Dependencies
+- **spring-boot-starter-data-jpa**: Provides Spring Data JPA for database access.
+- **spring-boot-starter-security**: Adds Spring Security for authentication and authorization.
+- **spring-boot-starter-web**: Includes components for building web applications, including REST APIs.
+- **spring-boot-starter-validation**: Adds validation capabilities to the application.
+- **spring-boot-starter-data-redis**: Enables Redis support for the application.
 
-* **Database Drivers:**
-    * `com.h2database:h2`: For in-memory H2 database (runtime scope).
-    * `com.mysql:mysql-connector-j`: For MySQL database connectivity.
+### Database and Data Processing
+- **h2**: H2 database, used for in-memory testing.
+- **mysql-connector-j**: MySQL connector for database connection.
 
-* **Lombok:**
-    * `org.projectlombok:lombok`: For reducing boilerplate code (optional).
+### JWT Dependencies
+- **jjwt-api**: JJWT API for creating and parsing JSON Web Tokens.
+- **jjwt-impl**: Implementation of JJWT used at runtime.
+- **jjwt-jackson**: JJWT module for Jackson integration.
 
-* **JSON Web Token (JWT):**
-    * `io.jsonwebtoken:jjwt-api`: JWT API.
-    * `io.jsonwebtoken:jjwt-impl`: JWT implementation (runtime scope).
-    * `io.jsonwebtoken:jjwt-jackson`: JWT Jackson integration (runtime scope).
+### Utility Dependencies
+- **lombok**: Provides annotations to reduce boilerplate code (like getters, setters, etc.). This dependency is optional.
+- **jackson-databind**: Jackson library for serializing and deserializing Java objects to and from JSON.
 
-* **Jakarta Validation:**
-    * `jakarta.validation:jakarta.validation-api`: For validation annotations.
+### Testing Dependencies
+- **spring-boot-starter-test**: Provides testing tools for Spring Boot applications.
+- **spring-security-test**: Provides security-specific test support for Spring Security.
 
-* **Jakarta Servlet API:**
-    * `jakarta.servlet:jakarta.servlet-api`: For servlet functionality (provided scope).
+### Build Plugins
+- **spring-boot-maven-plugin**: Plugin for building Spring Boot applications with Maven.
+- **maven-compiler-plugin**: Configures the Java compiler version.
 
-* **Jakarta Persistence API:**
-    * `jakarta.persistence:jakarta.persistence-api`: For JPA entity management.
-
-* **Spring Security Test:**
-    * `org.springframework.security:spring-security-test`: For Spring Security testing.
 
 ## Example usage with curl:
 
