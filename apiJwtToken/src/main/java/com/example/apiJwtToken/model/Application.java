@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name = "applications")
 @Getter
@@ -37,6 +39,7 @@ public class Application {
     private Long jwtExpiration = 3600000L; // Default to 1 hour (3600000 milliseconds)
 
     @ManyToMany(mappedBy = "applications", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<User> users;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -45,6 +48,7 @@ public class Application {
             joinColumns = @JoinColumn(name = "application_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
+    @JsonIgnore
     private List<Role> roles;
 
     // Constructors

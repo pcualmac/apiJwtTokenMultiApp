@@ -59,6 +59,7 @@ public class ApplicationService {
         return applicationRepository.findById(id);
     }
 
+
     public Optional<Application> findFirstByApplicationName(String applicationName) {
         return applicationRepository.findFirstByApplicationName(applicationName);
     }
@@ -83,5 +84,13 @@ public class ApplicationService {
         return applicationRepository.findAll().stream()
                 .map(app -> new ApplicationDto(app.getId(), app.getApplicationName(), app.getCreatedAt()))
                 .collect(Collectors.toList());
+    }
+
+    public Long getApplicationIdByName(String applicationName){
+        Optional<Application> applicationOptional = applicationRepository.findByApplicationName(applicationName);
+        if(applicationOptional.isPresent()){
+            return applicationOptional.get().getId();
+        }
+        return null;
     }
 }

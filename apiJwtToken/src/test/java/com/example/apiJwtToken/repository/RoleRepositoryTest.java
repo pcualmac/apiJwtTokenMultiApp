@@ -13,6 +13,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.Sql.ExecutionPhase;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -125,5 +126,18 @@ class RoleRepositoryTest {
     void testDeleteRole() {
         roleRepository.delete(role1);
         assertNull(entityManager.find(Role.class, role1.getId()));
+    }
+
+    @Test
+    public void findRoleByApplicationIdAndRoleId_shouldReturnRole() {
+        Optional<Role> roleOptional = roleRepository.findRoleByApplicationIdAndRoleId(1L, 1L);
+        assertTrue(roleOptional.isPresent());
+        assertEquals("ROLE_ADMIN", roleOptional.get().getRoleName());
+    }
+
+    @Test
+    public void findRoleByApplicationIdAndRoleId_shouldReturnEmptyOptional() {
+        Optional<Role> roleOptional = roleRepository.findRoleByApplicationIdAndRoleId(1L, 3L);
+        assertFalse(roleOptional.isPresent());
     }
 }

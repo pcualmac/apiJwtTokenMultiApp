@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RoleRepository extends JpaRepository<Role, Long> {
@@ -30,4 +31,8 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     // Get all role names
     @Query("SELECT r.roleName FROM Role r")
     List<String> findAllRoleNames();
+
+    // Find role by application id and role id else null
+    @Query("SELECT r FROM Role r JOIN r.applications a WHERE a.id = :applicationId AND r.id = :roleId")
+    Optional<Role> findRoleByApplicationIdAndRoleId(Long applicationId, Long roleId);
 }

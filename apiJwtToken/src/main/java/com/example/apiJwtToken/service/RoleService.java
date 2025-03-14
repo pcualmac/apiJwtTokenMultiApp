@@ -24,6 +24,10 @@ public class RoleService {
         return roleRepository.findById(id);
     }
 
+    public Optional<Role> getRoleByApplicationIdAndRoleId(Long roleId, Long applicationId) {
+        return roleRepository.findRoleByApplicationIdAndRoleId(applicationId, roleId);
+    }
+
     public List<User> getUsersByRoleId(Long roleId) {
         return roleRepository.findUsersByRoleId(roleId);
     }

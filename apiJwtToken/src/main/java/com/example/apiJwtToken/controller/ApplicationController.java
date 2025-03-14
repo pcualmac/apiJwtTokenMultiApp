@@ -2,6 +2,7 @@ package com.example.apiJwtToken.controller;
 
 import com.example.apiJwtToken.model.Application;
 import com.example.apiJwtToken.service.ApplicationService;
+import com.example.apiJwtToken.dto.UserDto;
 import com.example.apiJwtToken.model.User;
 
 import org.slf4j.Logger;
@@ -10,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import com.example.apiJwtToken.dto.ApplicationDto;
+import com.example.apiJwtToken.dto.UserDto;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -142,23 +145,27 @@ public class ApplicationController {
 
     @GetMapping(value = "/users/{applicationId}", produces = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_USER')")
-    public ResponseEntity<List<com.example.apiJwtToken.model.User>> getUsersByApplicationId(@PathVariable Long applicationId) {
+    public ResponseEntity<List<UserDto>> getUsersByApplicationId(@PathVariable Long applicationId) {
         List<com.example.apiJwtToken.model.User> users = applicationService.findUsersByApplicationId(applicationId);
-        return new ResponseEntity<>(users, HttpStatus.OK);
+        List<UserDto> userDtos = users.stream()
+                .map(user -> {
+                    UserDto dto = new UserDto();
+                    dto.setId(user.getId());
+                    dto.setUsername(user.getUsername());
+                    dto.setEmail(user.getEmail());
+                    // ... copy other fields ...
+                    return dto;
+                })
+                .collect(Collectors.toList());
+        return new ResponseEntity<>(userDtos, HttpStatus.OK);
     }
 
     @GetMapping("/roles/{applicationId}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_USER')")
+    @Transactional
     public ResponseEntity<List<com.example.apiJwtToken.model.Role>> getRolesByApplicationId(@PathVariable Long applicationId) {
         List<com.example.apiJwtToken.model.Role> roles = applicationService.findRolesByApplicationId(applicationId);
         return new ResponseEntity<>(roles, HttpStatus.OK);
-    }
-
-    @GetMapping("/users/{applicationId}/role/{roleId}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_USER')")
-    public ResponseEntity<List<com.example.apiJwtToken.model.User>> getUsersByRoleAndApplicationId(@PathVariable Long roleId, @PathVariable Long applicationId) {
-        List<com.example.apiJwtToken.model.User> users = applicationService.findUsersByRoleAndApplicationId(roleId, applicationId);
-        return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
     @GetMapping("/names")
@@ -169,7 +176,7 @@ public class ApplicationController {
     }
 
     @GetMapping("/secret/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_USER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     public ResponseEntity<String> getSecretKeyById(@PathVariable Long id) {
         Optional<String> secretKey = applicationService.findSecretKeyById(id);
         return secretKey.map(value -> new ResponseEntity<>(value, HttpStatus.OK))

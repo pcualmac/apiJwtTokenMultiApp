@@ -169,4 +169,40 @@ class RoleServiceTest {
         assertFalse(result);
         verify(roleRepository, times(1)).existsById(roleId);
     }
+
+    @Test
+    void getRoleByApplicationIdAndRoleId_shouldReturnRole() {
+        Role role = new Role();
+        role.setId(1L);
+        role.setRoleName("ROLE_TEST");
+
+        User user = new User();
+        user.setId(1L);
+
+        Application application = new Application();
+        application.setId(1L);
+
+        when(roleRepository.findRoleByApplicationIdAndRoleId(1L, 1L)).thenReturn(Optional.of(role));
+        Optional<Role> result = roleService.getRoleByApplicationIdAndRoleId(1L, 1L);
+        assertTrue(result.isPresent());
+        assertEquals(role, result.get());
+    }
+
+    @Test
+    void getRoleByApplicationIdAndRoleId_shouldReturnEmptyOptional() {
+
+        Role role = new Role();
+        role.setId(1L);
+        role.setRoleName("ROLE_TEST");
+
+        User user = new User();
+        user.setId(1L);
+
+        Application application = new Application();
+        application.setId(1L);
+
+        when(roleRepository.findRoleByApplicationIdAndRoleId(1L, 1L)).thenReturn(Optional.empty());
+        Optional<Role> result = roleService.getRoleByApplicationIdAndRoleId(1L, 1L);
+        assertFalse(result.isPresent());
+    }
 }
