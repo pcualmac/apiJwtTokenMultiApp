@@ -4,6 +4,15 @@ work in progress main error at the moment
 ```
 2025-03-11 15:16:03 2025-03-11 15:16:03.229 ERROR c.e.a.controller.LogoutController - Error invalidating application-specific token for TestApp1: Unable to connect to Redis
 ```
+## Services
+
+* **workbase:** A Java development environment for running commands within the application's context.
+* **app:** The main Spring Boot application (apiJwtToken).
+* **db:** A MySQL 5.7 database.
+* **redis:** A Redis cache.
+* **phpmyadmin:** A web-based MySQL administration tool.
+* **nginx:** An Nginx reverse proxy.
+
 
 # Spring Boot JWT Authentication API
 
@@ -20,10 +29,7 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
 
 ## Prerequisites
 
-* Java 17+
-* Maven 
-* A database MySQL
-* For test H2
+* Docker
 
 ## Role Action Table
 
@@ -46,8 +52,9 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
 1.  **Clone the repository:**
 
     ```bash
-    git clone <repository_url>
-    cd spring-boot-jwt-api
+    git clone https://github.com/pcualmac/apiJwtTokenMultiApp.git
+    cd apiJwtTokenMultiApp
+    docker compose up -d
     ```
 
 2.  **Configure the database:**
@@ -82,12 +89,6 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
     ./mvnw spring-boot:run
     ```
 
-    * Using Gradle:
-
-    ```bash
-    ./gradlew bootRun
-    ```
-
 5.  **API Endpoints:**
 
     * **`POST  /api/auth/register`:**
@@ -103,7 +104,6 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
     * **`POST  /api/auth/login`:**
     * **`DELETE  /api/roles/{id}`:**
     * **`GET  /api/roles/names`:**
-    * **`  /error`:**
     * **`POST  /api/auth/{applicationName}/register`:**
     * **`DELETE  /api/app/{id}`:**
     * **`GET  /api/auth/{applicationName}/roles/{id}`:**
