@@ -63,7 +63,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             logger.debug("Extracted JWT Token: {}", token);
 
-            if (requestURI.matches("/api/auth/logout")) {
+            if (requestURI.matches("/api/endpoints")) {
+                logger.debug("Handling endpoints request.");
+                handleDefault(token);
+            } else if (requestURI.matches("/api/auth/logout")) {
                 logger.debug("Handling logout request.");
                 handleLogout(token);
             } else if (requestURI.matches("/api/app/([^/]+)")) {

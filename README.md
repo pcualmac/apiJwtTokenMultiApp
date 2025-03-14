@@ -90,17 +90,42 @@ This project demonstrates a simple Spring Boot REST API secured with JSON Web To
 
 5.  **API Endpoints:**
 
-    * **`POST /api/auth/register`:** Register a new user.
-        * Request body: `{ "username": "...", "email": "...", "password": "..." }`
-    * **`POST /api/auth/login`:** Login and get a JWT.
-        * Request body: `{ "username": "...", "password": "..." }`
-        * Response body: `{ "token": "...", "refreshToken": "..." }` (Refresh token optional)
-    * **`POST /api/auth/refreshtoken`:** Refresh a JWT using a refresh token.(Optional)
-        * Request body: `{ "refreshToken": "..." }`
-        * Response body: `{ "token": "..." }`
-    * **`GET /api/test/user`:** Protected endpoint (requires user role).
-    * **`GET /api/test/admin`:** Protected endpoint (requires admin role).
-    * **`GET /api/test/all`:** Public endpoint (no authentication required).
+    * **`POST  /api/auth/register`:**
+    * **`GET  /api/app/names`:**
+    * **`GET  /api/app/expiration/{id}`:**
+    * **`POST  /api/auth/{applicationName}/login`:**
+    * **`GET  /api/endpoints`:**
+    * **`GET  /api/auth/{applicationName}/roles/names`:**
+    * **`GET  /api/app/roles/{applicationId}`:**
+    * **`GET  /api/app/show/{id}`:**
+    * **`GET  /api/app/index`:**
+    * **`GET  /api/auth/logout`:**
+    * **`POST  /api/auth/login`:**
+    * **`DELETE  /api/roles/{id}`:**
+    * **`GET  /api/roles/names`:**
+    * **`  /error`:**
+    * **`POST  /api/auth/{applicationName}/register`:**
+    * **`DELETE  /api/app/{id}`:**
+    * **`GET  /api/auth/{applicationName}/roles/{id}`:**
+    * **`GET  /api/auth/users/index`:**
+    * **`GET  /api/app/users/{applicationId}`:**
+    * **`PUT  /api/roles/{id}`:**
+    * **`GET  /api/app/name/{name}`:**
+    * **`POST  /api/auth/{applicationName}/roles/`:**
+    * **`POST  /api/auth/{applicationName}/register/{roleName}`:**
+    * **`PUT  /api/app/{id}`:**
+    * **`GET  /api/roles/index`:**
+    * **`GET  /api/auth/{applicationName}/users/index`:**
+    * **`GET  /api/app/secret/{id}`:**
+    * **`GET  /api/roles/{id}`:**
+    * **`POST  /api/roles/`:**
+    * **`GET  /api/roles/application/{applicationId}`:**
+    * **`GET  /api/auth/{applicationName}/roles/index`:**
+    * **`DELETE  /api/auth/{applicationName}/roles/{id}`:**
+    * **`POST  /api/app/`:**
+    * **`PUT  /api/auth/{applicationName}/roles/{id}`:**
+    * **`  /error`:**
+    * **`GET  /api/auth/{applicationName}/logout`:**
 
 ## Technologies Used
 
