@@ -1,35 +1,68 @@
 package com.example.apiJwtToken.service;
 
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class TokenBlacklistService {
 
     private final StringRedisTemplate redisTemplate;
+    private static final Logger logger = LoggerFactory.getLogger(TokenBlacklistService.class);
 
     public TokenBlacklistService(StringRedisTemplate redisTemplate) {
+        logger.debug("TokenBlacklistService initialized with StringRedisTemplate: {}", redisTemplate);
         this.redisTemplate = redisTemplate;
     }
 
-    // Blacklist token permanently (until manually removed)
     public void blacklistTokenPermanently(String token) {
-        redisTemplate.opsForValue().set(token, "blacklisted");
+        try {
+            redisTemplate.opsForValue().set("blacklisted_token:" + token, "blacklisted");
+            logger.debug("Token {} blacklisted permanently.", token);
+        } catch (RedisConnectionFailureException e) {
+            logger.error("Redis connection failed while blacklisting token {}: {}", token, e.getMessage());
+        } catch (DataAccessException e) {
+            logger.error("Redis error while blacklisting token {}: {}", token, e.getMessage());
+        }
     }
 
-    // Blacklist token with expiration based on JWT expiry
     public void blacklistTokenWithExpiry(String token, long expirationMillis) {
-        redisTemplate.opsForValue().set(token, "blacklisted", expirationMillis, TimeUnit.MILLISECONDS);
+        try {
+            redisTemplate.opsForValue().set("blacklisted_token:" + token, "blacklisted", expirationMillis, TimeUnit.MILLISECONDS);
+            logger.debug("Token {} blacklisted with expiry of {} ms.", token, expirationMillis);
+        } catch (RedisConnectionFailureException e) {
+            logger.error("Redis connection failed while blacklisting token {}: {}", token, e.getMessage());
+        } catch (DataAccessException e) {
+            logger.error("Redis error while blacklisting token {}: {}", token, e.getMessage());
+        }
     }
 
-    // Check if token is blacklisted
     public boolean isTokenBlacklisted(String token) {
-        return redisTemplate.hasKey(token);
+        try {
+            return redisTemplate.hasKey("blacklisted_token:" + token);
+        } catch (RedisConnectionFailureException e) {
+            logger.error("Redis connection failed while checking token {}: {}", token, e.getMessage());
+            return false;
+        } catch (DataAccessException e) {
+            logger.error("Redis error while checking token {}: {}", token, e.getMessage());
+            return false;
+        }
     }
 
-    // Remove a token from the blacklist (optional)
     public void removeTokenFromBlacklist(String token) {
-        redisTemplate.delete(token);
+        try {
+            redisTemplate.delete("blacklisted_token:" + token);
+            logger.debug("Token {} removed from blacklist.", token);
+        } catch (RedisConnectionFailureException e) {
+            logger.error("Redis connection failed while removing token {}: {}", token, e.getMessage());
+        } catch (DataAccessException e) {
+            logger.error("Redis error while removing token {}: {}", token, e.getMessage());
+        }
     }
 }

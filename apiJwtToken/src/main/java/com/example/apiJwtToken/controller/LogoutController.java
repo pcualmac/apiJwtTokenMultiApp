@@ -1,8 +1,9 @@
 package com.example.apiJwtToken.controller;
 
 import com.example.apiJwtToken.service.JwtAppService;
+import com.example.apiJwtToken.service.JwtRedisService;
 import com.example.apiJwtToken.service.JwtService;
-import com.example.apiJwtToken.service.TokenBlacklistService;
+import com.example.apiJwtToken.service.JwtRedisService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -10,6 +11,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -30,18 +32,18 @@ public class LogoutController {
     private final SecurityContextLogoutHandler logoutHandler;
     private final JwtAppService jwtAppService;
     private final JwtService jwtService;
-    private final TokenBlacklistService tokenBlacklistService;
+    private final JwtRedisService jwtRedisService;
     private final ApplicationService applicationService;
 
     public LogoutController(SecurityContextLogoutHandler logoutHandler, 
                             JwtAppService jwtAppService, 
                             JwtService jwtService,
-                            TokenBlacklistService tokenBlacklistService,
+                            JwtRedisService jwtRedisService,
                             ApplicationService applicationService) {
         this.logoutHandler = logoutHandler;
         this.jwtAppService = jwtAppService;
         this.jwtService = jwtService;
-        this.tokenBlacklistService = tokenBlacklistService;
+        this.jwtRedisService = jwtRedisService;
         this.applicationService = applicationService;
     }
 
@@ -53,42 +55,56 @@ public class LogoutController {
         if (authentication != null) {
             logoutHandler.logout(request, response, authentication);
             String token = extractTokenFromRequest(request);
+            
             if (token != null) {
                 try {
-                    jwtService.invalidateToken(token); // Example method to invalidate the token
-                    tokenBlacklistService.blacklistTokenPermanently(token); // Add token to Redis blacklist
+                    jwtService.invalidateToken(token); // Invalidate token in JWT service
+                    
+                    // Extract username correctly
+                    String username = authentication.getName(); // OR
+                    // String username = ((UserDetails) authentication.getPrincipal()).getUsername();
+                    
+                    jwtRedisService.deleteToken(username); // Delete token from Redis
                     logger.debug("Token invalidated and blacklisted successfully.");
+                    
                     return ResponseEntity.ok("Logged out successfully");
                 } catch (Exception e) {
                     logger.error("Error invalidating token: {}", e.getMessage());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Logout failed");
                 }
             }
         }
         return ResponseEntity.ok("Logged out successfully");
     }
 
+
     @GetMapping(value = "/{applicationName}/logout", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> appLogout(HttpServletRequest request, HttpServletResponse response,  @PathVariable String applicationName) {
+    public ResponseEntity<String> appLogout(HttpServletRequest request, HttpServletResponse response, @PathVariable String applicationName) {
         List<String> applications = applicationService.findAllApplicationNames();
         if (!applications.contains(applicationName)) {
             return ResponseEntity.badRequest().body("Application name is not valid");
         }
+    
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         logger.debug("Authentication object: {}", authentication);
-
+    
         if (authentication != null) {
+            String username = authentication.getName(); // ✅ Extract username
+    
             logoutHandler.logout(request, response, authentication);
             String token = extractTokenFromRequestApp(request);
+    
             if (token != null) {
                 try {
                     jwtAppService.invalidateToken(token);
-                    tokenBlacklistService.blacklistTokenPermanently(token);
+                    jwtRedisService.deleteToken(username); // ✅ Use extracted username
                     logger.debug("Application-specific token invalidated and blacklisted successfully for {}", applicationName);
                 } catch (Exception e) {
                     logger.error("Error invalidating application-specific token for {}: {}", applicationName, e.getMessage());
                 }
             }
         }
+    
         return ResponseEntity.ok("Logged out successfully from " + applicationName);
     }
 

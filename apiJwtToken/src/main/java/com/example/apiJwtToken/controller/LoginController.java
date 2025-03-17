@@ -2,6 +2,7 @@ package com.example.apiJwtToken.controller;
 
 import com.example.apiJwtToken.dto.LoginRequest;
 import com.example.apiJwtToken.service.JwtAppService;
+import com.example.apiJwtToken.service.JwtRedisService;
 import com.example.apiJwtToken.service.JwtService;
 import com.example.apiJwtToken.service.ApplicationService;
 
@@ -25,18 +26,21 @@ public class LoginController {
     private final JwtService jwtService;
     private final JwtAppService jwtAppService;
     private final ApplicationService applicationService;
+    private final JwtRedisService jwtRedisService;
 
     @Autowired
     public LoginController(AuthenticationManager authenticationManager,
                            UserDetailsService userDetailsService,
                            JwtService jwtService,
                            JwtAppService jwtAppService,
-                           ApplicationService applicationService) {
+                           ApplicationService applicationService,
+                           JwtRedisService jwtRedisService) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
         this.jwtAppService = jwtAppService;
         this.applicationService = applicationService;
+        this.jwtRedisService = jwtRedisService;
     }
 
     @PostMapping("/login")
@@ -48,6 +52,7 @@ public class LoginController {
         if (authentication.isAuthenticated()) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
             String token = jwtService.generateToken(userDetails);
+            jwtRedisService.storeToken(userDetails.getUsername(), token);
             return ResponseEntity.ok(token);
         } else {
             return ResponseEntity.badRequest().body("Invalid credentials");
@@ -67,6 +72,7 @@ public class LoginController {
         if (authentication.isAuthenticated()) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
             String token = jwtAppService.generateToken(userDetails, applicationName);
+            jwtRedisService.storeToken(userDetails.getUsername(), token);
             return ResponseEntity.ok(token);
         } else {
             return ResponseEntity.badRequest().body("Invalid credentials");

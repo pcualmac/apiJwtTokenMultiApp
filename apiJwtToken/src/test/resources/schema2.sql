@@ -40,7 +40,11 @@ CREATE TABLE user_applications (
     FOREIGN KEY (user_id) REFERENCES app_users(id) ON DELETE CASCADE,
     FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
 );
+ALTER TABLE user_applications
+ADD COLUMN jwt_token VARCHAR(2048); -- Adjust VARCHAR length as needed
 
+-- Optionally, add an index on the jwt_token column for faster lookups
+CREATE INDEX idx_user_applications_jwt_token ON user_applications (jwt_token);
 -- Indexes on user_applications
 CREATE INDEX idx_user_applications_application_id ON user_applications (application_id);
 CREATE INDEX idx_user_applications_user_id ON user_applications (user_id);
