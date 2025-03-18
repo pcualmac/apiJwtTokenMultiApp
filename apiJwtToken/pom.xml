@@ -93,6 +93,30 @@
 
     <build>
         <plugins>
+       <!-- JaCoCo Plugin for Test Coverage -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.8</version> <!-- Use the latest version -->
+                <executions>
+                    <!-- Execution to prepare JaCoCo agent -->
+                    <execution>
+                        <id>prepare-agent</id> <!-- Unique ID for this execution -->
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+
+                    <!-- Execution to generate the JaCoCo report -->
+                    <execution>
+                        <id>generate-report</id> <!-- Unique ID for this execution -->
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <phase>verify</phase>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
