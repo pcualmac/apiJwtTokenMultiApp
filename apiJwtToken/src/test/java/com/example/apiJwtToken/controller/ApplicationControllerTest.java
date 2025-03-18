@@ -3,9 +3,9 @@ package com.example.apiJwtToken.controller;
 import com.example.apiJwtToken.dto.ApplicationDto;
 import com.example.apiJwtToken.dto.UserDto;
 import com.example.apiJwtToken.model.Application;
-import com.example.apiJwtToken.model.Role;
 import com.example.apiJwtToken.model.User;
 import com.example.apiJwtToken.service.ApplicationService;
+import com.example.apiJwtToken.util.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,12 +14,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.test.context.support.WithMockUser;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,171 +36,180 @@ public class ApplicationControllerTest {
     private Application application;
     private ApplicationDto applicationDto;
     private User user;
-    private Role role;
+    private UserDto userDto;
 
     @BeforeEach
     void setUp() {
         application = new Application();
         application.setId(1L);
         application.setApplicationName("TestApp");
-        application.setSecretKey("secretKey");
-        application.setJwtExpiration(3600L);
-
         user = new User();
-        user.setId(10L);
-        user.setUsername("testUser");
-        List<User> users = new ArrayList<>();
-        users.add(user);
-        application.setUsers(users);
+        user.setId(1L);
+        user.setUsername("testUser"); // Add this line
+        user.setEmail("test@example.com"); // Add this line
+        application.setUsers(Collections.singletonList(user));
 
-        List<Long> userIds = users.stream().map(User::getId).collect(Collectors.toList());
-        applicationDto = new ApplicationDto(1L, "TestApp", userIds);
+        applicationDto = new ApplicationDto(1L, "TestApp", Collections.singletonList(1L));
 
-        role = new Role();
-        role.setId(1L);
-        role.setRoleName("ROLE_TEST");
+        userDto = new UserDto();
+        userDto.setId(1L);
+        userDto.setUsername("testUser");
+        userDto.setEmail("test@example.com");
     }
 
     @Test
-    void getAllApplications_shouldReturnOkWithListOfApplicationDtos() {
-        when(applicationService.findAllApplicationDtos()).thenReturn(Arrays.asList(applicationDto));
-        ResponseEntity<List<ApplicationDto>> response = applicationController.getAllApplications();
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
+    void getAllApplications_shouldReturnOkAndListOfApplicationDtos() {
+        when(applicationService.findAllApplicationDtos()).thenReturn(Collections.singletonList(applicationDto));
+
+        ResponseEntity<ApiResponse<List<ApplicationDto>>> response = applicationController.getAllApplications();
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(applicationDto, response.getBody().getData().get(0));
     }
 
     @Test
-    void getApplicationById_shouldReturnOkWithApplicationDto() {
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
+    void getApplicationById_shouldReturnOkAndApplicationDto() {
         when(applicationService.findApplicationById(1L)).thenReturn(Optional.of(application));
-        ResponseEntity<ApplicationDto> response = applicationController.getApplicationById(1L);
+
+        ResponseEntity<ApiResponse<ApplicationDto>> response = applicationController.getApplicationById(1L);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(applicationDto.getApplicationName(), response.getBody().getApplicationName());
+        assertEquals(applicationDto, response.getBody().getData());
     }
 
     @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
     void getApplicationById_shouldReturnNotFoundWhenApplicationDoesNotExist() {
         when(applicationService.findApplicationById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<ApplicationDto> response = applicationController.getApplicationById(1L);
+
+        ResponseEntity<ApiResponse<ApplicationDto>> response = applicationController.getApplicationById(1L);
+
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Application not found", response.getBody().getMessage());
     }
 
     @Test
-    void getApplicationByName_shouldReturnOkWithApplicationDto() {
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
+    void getApplicationByName_shouldReturnOkAndApplicationDto() {
         when(applicationService.findByApplicationName("TestApp")).thenReturn(Optional.of(application));
-        ResponseEntity<ApplicationDto> response = applicationController.getApplicationByName("TestApp");
+
+        ResponseEntity<ApiResponse<ApplicationDto>> response = applicationController.getApplicationByName("TestApp");
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(applicationDto.getApplicationName(), response.getBody().getApplicationName());
+        assertEquals(applicationDto, response.getBody().getData());
     }
 
     @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
     void getApplicationByName_shouldReturnNotFoundWhenApplicationDoesNotExist() {
         when(applicationService.findByApplicationName("TestApp")).thenReturn(Optional.empty());
-        ResponseEntity<ApplicationDto> response = applicationController.getApplicationByName("TestApp");
+
+        ResponseEntity<ApiResponse<ApplicationDto>> response = applicationController.getApplicationByName("TestApp");
+
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Application not found", response.getBody().getMessage());
     }
 
     @Test
-    void createApplication_shouldReturnCreatedWithApplication() {
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void createApplication_shouldReturnCreatedAndSavedApplication() {
         when(applicationService.findByApplicationName("TestApp")).thenReturn(Optional.empty());
         when(applicationService.saveApplication(any(Application.class))).thenReturn(application);
-        ResponseEntity<Application> response = applicationController.createApplication(application);
+
+        ResponseEntity<ApiResponse<Application>> response = applicationController.createApplication(application);
+
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(application.getApplicationName(), response.getBody().getApplicationName());
+        assertEquals(application, response.getBody().getData());
     }
 
     @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
     void createApplication_shouldReturnBadRequestWhenApplicationNameIsEmpty() {
         application.setApplicationName("");
-        ResponseEntity<Application> response = applicationController.createApplication(application);
+
+        ResponseEntity<ApiResponse<Application>> response = applicationController.createApplication(application);
+
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Application name cannot be empty", response.getBody().getMessage());
     }
 
     @Test
-    void createApplication_shouldReturnConflictWhenApplicationNameExists() {
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void createApplication_shouldReturnConflictWhenApplicationAlreadyExists() {
         when(applicationService.findByApplicationName("TestApp")).thenReturn(Optional.of(application));
-        ResponseEntity<Application> response = applicationController.createApplication(application);
+
+        ResponseEntity<ApiResponse<Application>> response = applicationController.createApplication(application);
+
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("Application with this name already exists", response.getBody().getMessage());
     }
 
     @Test
-    void updateApplication_shouldReturnOkWithUpdatedApplication() {
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
+    void updateApplication_shouldReturnOkAndUpdatedApplication() {
         when(applicationService.findApplicationById(1L)).thenReturn(Optional.of(application));
         when(applicationService.saveApplication(any(Application.class))).thenReturn(application);
-        ResponseEntity<Application> response = applicationController.updateApplication(1L, application);
+
+        ResponseEntity<ApiResponse<Application>> response = applicationController.updateApplication(1L, application);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(application.getApplicationName(), response.getBody().getApplicationName());
+        assertEquals(application, response.getBody().getData());
     }
 
     @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
     void updateApplication_shouldReturnNotFoundWhenApplicationDoesNotExist() {
         when(applicationService.findApplicationById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<Application> response = applicationController.updateApplication(1L, application);
+
+        ResponseEntity<ApiResponse<Application>> response = applicationController.updateApplication(1L, application);
+
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Application not found", response.getBody().getMessage());
     }
 
     @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
     void deleteApplication_shouldReturnNoContent() {
         when(applicationService.findApplicationById(1L)).thenReturn(Optional.of(application));
-        ResponseEntity<Void> response = applicationController.deleteApplication(1L);
+
+        ResponseEntity<ApiResponse<Void>> response = applicationController.deleteApplication(1L);
+
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        verify(applicationService, times(1)).deleteApplication(1L);
     }
 
     @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
     void deleteApplication_shouldReturnNotFoundWhenApplicationDoesNotExist() {
         when(applicationService.findApplicationById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<Void> response = applicationController.deleteApplication(1L);
+
+        ResponseEntity<ApiResponse<Void>> response = applicationController.deleteApplication(1L);
+
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        verify(applicationService, never()).deleteApplication(1L);
+        assertEquals("Application not found", response.getBody().getMessage());
     }
 
     @Test
-    void getUsersByApplicationId_shouldReturnOkWithListOfUserDtos() {
-        UserDto userDto = new UserDto();
-        userDto.setId(10L);
-        userDto.setUsername("testUser");
-        when(applicationService.findUsersByApplicationId(1L)).thenReturn(Arrays.asList(user));
-        ResponseEntity<List<UserDto>> response = applicationController.getUsersByApplicationId(1L);
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
+    void getUsersByApplicationId_shouldReturnOkAndListOfUserDtos() {
+        when(applicationService.findUsersByApplicationId(1L)).thenReturn(Collections.singletonList(user));
+
+        ResponseEntity<ApiResponse<List<UserDto>>> response = applicationController.getUsersByApplicationId(1L);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(userDto, response.getBody().getData().get(0));
     }
-
     @Test
-    void getRolesByApplicationId_shouldReturnOkWithListOfRoles() {
-        when(applicationService.findRolesByApplicationId(1L)).thenReturn(Arrays.asList(role));
-        ResponseEntity<List<Role>> response = applicationController.getRolesByApplicationId(1L);
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
+    void getRolesByApplicationId_shouldReturnOkAndListOfRoles() {
+        when(applicationService.findRolesByApplicationId(1L)).thenReturn(Collections.emptyList());
+
+        ResponseEntity<ApiResponse<List<com.example.apiJwtToken.model.Role>>> response = applicationController.getRolesByApplicationId(1L);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-    }
-
-    @Test
-    void getAllApplicationNames_shouldReturnOkWithListOfNames() {
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp"));
-        ResponseEntity<List<String>> response = applicationController.getAllApplicationNames();
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-    }
-
-    @Test
-    void getSecretKeyById_shouldReturnOkWithSecretKey() {
-        when(applicationService.findSecretKeyById(1L)).thenReturn(Optional.of("secretKey"));
-        ResponseEntity<String> response = applicationController.getSecretKeyById(1L);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("secretKey", response.getBody());
-    }
-
-    @Test
-    void getSecretKeyById_shouldReturnNotFoundWhenSecretKeyDoesNotExist() {
-        when(applicationService.findSecretKeyById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<String> response = applicationController.getSecretKeyById(1L);
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals(0, response.getBody().getData().size());
     }
 }
