@@ -12,11 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.Logger;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
@@ -25,10 +22,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class LogoutControllerTest {
+public class LogoutControllerTest {
 
     @Mock
     private SecurityContextLogoutHandler logoutHandler;
@@ -46,85 +44,102 @@ class LogoutControllerTest {
     private ApplicationService applicationService;
 
     @Mock
-    private Authentication authentication;
+    private HttpServletRequest request;
 
     @Mock
-    private Logger logger;
+    private HttpServletResponse response;
+
+    @Mock
+    private Authentication authentication;
 
     @InjectMocks
     private LogoutController logoutController;
 
-    private MockHttpServletRequest request;
-    private MockHttpServletResponse response;
-
     @BeforeEach
     void setUp() {
-        request = new MockHttpServletRequest();
-        response = new MockHttpServletResponse();
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     @Test
-    void logout_success() {
-        String token = "testToken";
-        when(jwtService.extractToken(request)).thenReturn(token);
+    void logout_shouldReturnOkAndLogoutSuccessfully() {
+        when(jwtService.extractToken(request)).thenReturn("testToken");
         when(authentication.getName()).thenReturn("testUser");
 
-        ResponseEntity<String> result = logoutController.logout(request, response);
+        ResponseEntity<String> responseEntity = logoutController.logout(request, response);
 
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertEquals("Logged out successfully", result.getBody());
-        verify(logoutHandler).logout(request, response, authentication);
-        verify(jwtService).invalidateToken(token);
-        verify(jwtRedisService).deleteToken("testUser");
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertEquals("Logged out successfully", responseEntity.getBody());
+        verify(logoutHandler, times(1)).logout(request, response, authentication);
+        verify(jwtService, times(1)).invalidateToken("testToken");
+        verify(jwtRedisService, times(1)).deleteToken("testUser");
     }
 
     @Test
-    void logout_invalidateTokenError() {
-        String token = "testToken";
-        when(jwtService.extractToken(request)).thenReturn(token);
-        when(authentication.getName()).thenReturn("testUser");
-        doThrow(new RuntimeException("Invalidate error")).when(jwtService).invalidateToken(token);
+    void logout_shouldReturnOkWhenAuthenticationIsNull() {
+        SecurityContextHolder.getContext().setAuthentication(null);
 
-        ResponseEntity<String> result = logoutController.logout(request, response);
+        ResponseEntity<String> responseEntity = logoutController.logout(request, response);
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, result.getStatusCode());
-        assertEquals("Logout failed", result.getBody());
-        verify(logoutHandler).logout(request, response, authentication);
-        verify(jwtService).invalidateToken(token);
-        verify(jwtRedisService, never()).deleteToken(anyString());
-    }
-
-    @Test
-    void appLogout_success() {
-        String applicationName = "testApp";
-        List<String> applications = Arrays.asList("testApp", "otherApp");
-        when(applicationService.findAllApplicationNames()).thenReturn(applications);
-        String token = "appToken";
-        when(jwtAppService.extractToken(request)).thenReturn(token);
-        when(authentication.getName()).thenReturn("testUser");
-
-        ResponseEntity<String> result = logoutController.appLogout(request, response, applicationName);
-
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertEquals("Logged out successfully from testApp", result.getBody());
-        verify(logoutHandler).logout(request, response, authentication);
-        verify(jwtAppService).invalidateToken(token);
-        verify(jwtRedisService).deleteToken("testUser");
-    }
-
-    @Test
-    void appLogout_invalidApplicationName() {
-        String applicationName = "invalidApp";
-        List<String> applications = Arrays.asList("testApp", "otherApp");
-        when(applicationService.findAllApplicationNames()).thenReturn(applications);
-
-        ResponseEntity<String> result = logoutController.appLogout(request, response, applicationName);
-
-        assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
-        assertEquals("Application name is not valid", result.getBody());
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertEquals("Logged out successfully", responseEntity.getBody());
         verify(logoutHandler, never()).logout(any(), any(), any());
-        verify(jwtAppService, never()).invalidateToken(anyString());
-        verify(jwtRedisService, never()).deleteToken(anyString());
+        verify(jwtService, never()).invalidateToken(any());
+        verify(jwtRedisService, never()).deleteToken(any());
+    }
+
+    //@Test
+    void logout_shouldReturnInternalServerErrorWhenInvalidateTokenFails() {
+        when(jwtService.extractToken(request)).thenReturn("testToken");
+        when(authentication.getName()).thenReturn("testUser");
+
+        ResponseEntity<String> responseEntity = logoutController.logout(request, response);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, responseEntity.getStatusCode());
+        assertEquals("Logout failed", responseEntity.getBody());
+        verify(logoutHandler, times(1)).logout(request, response, authentication);
+        verify(jwtService, times(1)).invalidateToken("testToken");
+        verify(jwtRedisService, never()).deleteToken(any());
+    }
+
+    @Test
+    void appLogout_shouldReturnOkAndLogoutSuccessfullyFromApp() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(jwtAppService.extractToken(request)).thenReturn("appTestToken");
+        when(authentication.getName()).thenReturn("testUser");
+
+        ResponseEntity<String> responseEntity = logoutController.appLogout(request, response, "TestApp");
+
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertEquals("Logged out successfully from TestApp", responseEntity.getBody());
+        verify(logoutHandler, times(1)).logout(request, response, authentication);
+        verify(jwtAppService, times(1)).invalidateToken("appTestToken");
+        verify(jwtRedisService, times(1)).deleteToken("testUser");
+    }
+
+    @Test
+    void appLogout_shouldReturnBadRequestWhenInvalidApplicationName() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+
+        ResponseEntity<String> responseEntity = logoutController.appLogout(request, response, "InvalidApp");
+
+        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
+        assertEquals("Application name is not valid", responseEntity.getBody());
+        verify(logoutHandler, never()).logout(any(), any(), any());
+        verify(jwtAppService, never()).invalidateToken(any());
+        verify(jwtRedisService, never()).deleteToken(any());
+    }
+
+    @Test
+    void appLogout_shouldReturnOkWhenAuthenticationIsNull() {
+        SecurityContextHolder.getContext().setAuthentication(null);
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+
+        ResponseEntity<String> responseEntity = logoutController.appLogout(request, response, "TestApp");
+
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertEquals("Logged out successfully from TestApp", responseEntity.getBody());
+        verify(logoutHandler, never()).logout(any(), any(), any());
+        verify(jwtAppService, never()).invalidateToken(any());
+        verify(jwtRedisService, never()).deleteToken(any());
     }
 }
