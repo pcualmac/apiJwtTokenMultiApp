@@ -8,11 +8,13 @@ import com.example.apiJwtToken.model.User;
 import com.example.apiJwtToken.service.ApplicationService;
 import com.example.apiJwtToken.service.RoleService;
 import com.example.apiJwtToken.service.UserService;
+import com.example.apiJwtToken.util.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,8 +25,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 public class UserControllerTest {
 
     @Mock
@@ -42,174 +46,160 @@ public class UserControllerTest {
     @InjectMocks
     private UserController userController;
 
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    private UserRequest userRequest;
+    private User user;
+    private Application application;
+    private Role role;
+    private UserDto userDto;
 
-    @Test
-    public void testRegisterUser_Success() {
-        UserRequest userRequest = new UserRequest();
+    @BeforeEach
+    void setUp() {
+        userRequest = new UserRequest();
         userRequest.setUsername("testUser");
         userRequest.setPassword("password");
         userRequest.setEmail("test@example.com");
 
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(userService.saveUser(any(User.class))).thenReturn(new User("testUser", "encodedPassword", "test@example.com"));
+        user = new User();
+        user.setId(1L);
+        user.setUsername("testUser");
+        user.setPassword("encodedPassword");
+        user.setEmail("test@example.com");
 
-        ResponseEntity<?> response = userController.registerUser(userRequest);
+        application = new Application();
+        application.setId(1L);
+        application.setApplicationName("TestApp");
+
+        role = new Role();
+        role.setId(1L);
+        role.setRoleName("ROLE_TEST");
+
+        userDto = new UserDto();
+        userDto.setId(1L);
+        userDto.setUsername("testUser");
+        userDto.setEmail("test@example.com");
+    }
+
+    @Test
+    void registerUser_shouldReturnOkAndSuccessMessage() {
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
+        when(userService.saveUser(any(User.class))).thenReturn(user);
+
+        ResponseEntity<ApiResponse<String>> response = userController.registerUser(userRequest);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("User registered successfully: testUser", response.getBody());
-        verify(userService, times(1)).saveUser(any(User.class));
+        assertEquals("User registered successfully: testUser", response.getBody().getData());
     }
 
     @Test
-    public void testRegisterUser_Failure() {
-        UserRequest userRequest = new UserRequest();
-        userRequest.setUsername("testUser");
-        userRequest.setPassword("password");
-        userRequest.setEmail("test@example.com");
-
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+    void registerUser_shouldReturnBadRequestWhenExceptionOccurs() {
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
         when(userService.saveUser(any(User.class))).thenThrow(new RuntimeException("Username already exists"));
 
-        ResponseEntity<?> response = userController.registerUser(userRequest);
+        ResponseEntity<ApiResponse<String>> response = userController.registerUser(userRequest);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Username already exists", response.getBody());
-        verify(userService, times(1)).saveUser(any(User.class));
+        assertEquals("Username already exists", response.getBody().getMessage());
     }
 
     @Test
-    public void testRegisterUserWithApplication_Success() {
-        UserRequest userRequest = new UserRequest();
-        userRequest.setUsername("testUser");
-        userRequest.setPassword("password");
-        userRequest.setEmail("test@example.com");
+    void registerUserWithApplication_shouldReturnOkAndSuccessMessage() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
+        when(userService.saveUser(any(User.class))).thenReturn(user);
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(application));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp"));
-        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(new Application()));
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(userService.saveUser(any(User.class))).thenReturn(new User("testUser", "encodedPassword", "test@example.com"));
-
-        ResponseEntity<?> response = userController.registerUserWithApplication(userRequest, "TestApp");
+        ResponseEntity<ApiResponse<String>> response = userController.registerUserWithApplication(userRequest, "TestApp");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("User registered successfully with application: testUser", response.getBody());
-        verify(userService, times(2)).saveUser(any(User.class));
+        assertEquals("User registered successfully with application: testUser", response.getBody().getData());
     }
 
     @Test
-    public void testRegisterUserWithApplication_ApplicationNotFound() {
-        UserRequest userRequest = new UserRequest();
-        userRequest.setUsername("testUser");
-        userRequest.setPassword("password");
-        userRequest.setEmail("test@example.com");
+    void registerUserWithApplication_shouldReturnBadRequestWhenInvalidApplicationName() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp"));
+        ResponseEntity<ApiResponse<String>> response = userController.registerUserWithApplication(userRequest, "InvalidApp");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Application name is not valid", response.getBody().getMessage());
+    }
+
+    @Test
+    void registerUserWithApplication_shouldReturnBadRequestWhenApplicationNotFound() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
         when(applicationService.findByName("TestApp")).thenReturn(Optional.empty());
 
-        ResponseEntity<?> response = userController.registerUserWithApplication(userRequest, "TestApp");
+        ResponseEntity<ApiResponse<String>> response = userController.registerUserWithApplication(userRequest, "TestApp");
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Application not found.", response.getBody());
+        assertEquals("Application not found.", response.getBody().getMessage());
     }
 
     @Test
-    public void testRegisterUserWithApplicationAndRole_Success() {
-        UserRequest userRequest = new UserRequest();
-        userRequest.setUsername("testUser");
-        userRequest.setPassword("password");
-        userRequest.setEmail("test@example.com");
+    void registerUserWithApplicationAndRole_shouldReturnOkAndSuccessMessage() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
+        when(userService.saveUser(any(User.class))).thenReturn(user);
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(application));
+        when(roleService.findByName("ROLE_TEST")).thenReturn(Optional.of(role));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp"));
-        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(new Application()));
-        when(roleService.findByName("ADMIN")).thenReturn(Optional.of(new Role()));
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        when(userService.saveUser(any(User.class))).thenReturn(new User("testUser", "encodedPassword", "test@example.com"));
-
-        ResponseEntity<?> response = userController.registerUserWithApplicationAndRole(userRequest, "TestApp", "ADMIN");
+        ResponseEntity<ApiResponse<String>> response = userController.registerUserWithApplicationAndRole(userRequest, "TestApp", "ROLE_TEST");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("User registered successfully with application and role: testUser", response.getBody());
-        verify(userService, times(2)).saveUser(any(User.class));
+        assertEquals("User registered successfully with application and role: testUser", response.getBody().getData());
     }
 
     @Test
-    public void testIndex_Success() {
-        List<User> users = Arrays.asList(new User("testUser", "encodedPassword", "test@example.com"));
-        when(userService.getAllUsers()).thenReturn(users);
+    void registerUserWithApplicationAndRole_shouldReturnBadRequestWhenRoleNotFound() {
+    
+        ResponseEntity<ApiResponse<String>> response = userController.registerUserWithApplicationAndRole(userRequest, "TestApp", "ROLE_TEST");
+    
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Application name is not valid", response.getBody().getMessage());
+    }
 
-        ResponseEntity<List<UserDto>> response = userController.index();
+    @Test
+    void index_shouldReturnOkAndListOfUserDtos() {
+        when(userService.getAllUsers()).thenReturn(Collections.singletonList(user));
+
+        ResponseEntity<ApiResponse<List<UserDto>>> response = userController.index();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(1, response.getBody().size());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(userDto, response.getBody().getData().get(0));
     }
 
     @Test
-    public void testIndex_Failure() {
+    void index_shouldReturnBadRequestWhenExceptionOccurs() {
         when(userService.getAllUsers()).thenThrow(new RuntimeException("Database error"));
 
-        ResponseEntity<List<UserDto>> response = userController.index();
+        ResponseEntity<ApiResponse<List<UserDto>>> response = userController.index();
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals(null, response.getBody());
+        assertEquals("Database error", response.getBody().getMessage());
     }
 
     @Test
-    public void testIndexWithApplication_Success() {
-        Application app = new Application();
-        app.setApplicationName("TestApp");
+    void index_application_shouldReturnOkAndListOfUserDtos() {
+        user.setApplications(Collections.singletonList(application));
 
-        User user = new User("testUser", "encodedPassword", "test@example.com");
-        user.addApplication(app);
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(application));
+        when(userService.getAllUsers()).thenReturn(Collections.singletonList(user));
 
-        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(app));
-        when(userService.getAllUsers()).thenReturn(Arrays.asList(user));
-
-        ResponseEntity<List<UserDto>> response = userController.index("TestApp");
+        ResponseEntity<ApiResponse<List<UserDto>>> response = userController.index("TestApp");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(1, response.getBody().size());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(userDto, response.getBody().getData().get(0));
     }
 
     @Test
-    public void testIndexWithApplication_ApplicationNotFound() {
-        when(applicationService.findByName("NonExistentApp")).thenReturn(Optional.empty());
+    void index_application_shouldReturnBadRequestWhenApplicationNotFound() {
+        when(applicationService.findByName("TestApp")).thenReturn(Optional.empty());
 
-        ResponseEntity<List<UserDto>> response = userController.index("NonExistentApp");
+        ResponseEntity<ApiResponse<List<UserDto>>> response = userController.index("TestApp");
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals(null, response.getBody());
-    }
-
-    @Test
-    public void testIndexWithApplication_UserNotInApplication() {
-        Application app = new Application();
-        app.setApplicationName("TestApp");
-
-        User user = new User("testUser", "encodedPassword", "test@example.com");
-
-        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(app));
-        when(userService.getAllUsers()).thenReturn(Arrays.asList(user));
-
-        ResponseEntity<List<UserDto>> response = userController.index("TestApp");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(0, response.getBody().size());
-    }
-    @Test
-    public void testIndexWithApplication_EmptyUserList() {
-        Application app = new Application();
-        app.setApplicationName("TestApp");
-
-        when(applicationService.findByName("TestApp")).thenReturn(Optional.of(app));
-        when(userService.getAllUsers()).thenReturn(Collections.emptyList());
-
-        ResponseEntity<List<UserDto>> response = userController.index("TestApp");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(0, response.getBody().size());
+        assertEquals("Application not found.", response.getBody().getMessage());
     }
 }
