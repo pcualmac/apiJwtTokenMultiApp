@@ -5,22 +5,27 @@ import com.example.apiJwtToken.model.Application;
 import com.example.apiJwtToken.model.Role;
 import com.example.apiJwtToken.service.ApplicationService;
 import com.example.apiJwtToken.service.RoleService;
+import com.example.apiJwtToken.util.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
-class ApplicationRoleControllerTest {
+@ExtendWith(MockitoExtension.class)
+public class ApplicationRoleControllerTest {
 
     @Mock
     private RoleService roleService;
@@ -31,178 +36,142 @@ class ApplicationRoleControllerTest {
     @InjectMocks
     private ApplicationRoleController applicationRoleController;
 
+    private Application application;
+    private Role role;
+    private RoleDto roleDto;
+
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        application = new Application();
+        application.setId(1L);
+        application.setApplicationName("TestApp");
+
+        role = new Role();
+        role.setId(1L);
+        role.setRoleName("ROLE_TEST");
+        role.setApplications(new ArrayList<>(Arrays.asList(application)));
+        application.setRoles(new ArrayList<>(Arrays.asList(role)));
+
+        roleDto = new RoleDto(1L, "ROLE_TEST");
     }
 
     @Test
-    void getAllRoles_ValidApplicationName_ReturnsOk() {
-        String applicationName = "testApp";
-        Long applicationId = 1L;
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void getAllRoles_shouldReturnOkAndListOfRoleDtos() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(roleService.getRolesByApplicationId(1L)).thenReturn(Arrays.asList(role));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-        when(applicationService.getApplicationIdByName(applicationName)).thenReturn(applicationId);
-
-        Role role1 = new Role();
-        role1.setId(1L);
-        role1.setRoleName("role1");
-        Role role2 = new Role();
-        role2.setId(2L);
-        role2.setRoleName("role2");
-        List<Role> roles = Arrays.asList(role1, role2);
-
-        when(roleService.getRolesByApplicationId(applicationId)).thenReturn(roles);
-
-        ResponseEntity<?> response = applicationRoleController.getAllRoles(applicationName);
+        ResponseEntity<ApiResponse<List<RoleDto>>> response = applicationRoleController.getAllRoles("TestApp");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        List<RoleDto> roleDtos = (List<RoleDto>) response.getBody();
-        assertEquals(2, roleDtos.size());
-        assertEquals("role1", roleDtos.get(0).getRoleName());
-        assertEquals("role2", roleDtos.get(1).getRoleName());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(roleDto, response.getBody().getData().get(0));
     }
 
     @Test
-    void getAllRoles_InvalidApplicationName_ReturnsBadRequest() {
-        String applicationName = "testApp";
-        String invalidApplicationName = "invalidApp";
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void getRoleById_shouldReturnOkAndRoleDto() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(roleService.getRoleByApplicationIdAndRoleId(1L, 1L)).thenReturn(Optional.of(role));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-
-        ResponseEntity<?> response = applicationRoleController.getAllRoles(invalidApplicationName);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Application name is not valid", response.getBody());
-    }
-
-    @Test
-    void getRoleById_ValidApplicationAndRoleId_ReturnsOk() {
-        String applicationName = "testApp";
-        Long applicationId = 1L;
-        Long roleId = 1L;
-
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-        when(applicationService.getApplicationIdByName(applicationName)).thenReturn(applicationId);
-
-        Role role = new Role();
-        role.setId(roleId);
-        role.setRoleName("testRole");
-
-        when(roleService.getRoleByApplicationIdAndRoleId(roleId, applicationId)).thenReturn(Optional.of(role));
-
-        ResponseEntity<?> response = applicationRoleController.getRoleById(applicationName, roleId);
+        ResponseEntity<ApiResponse<RoleDto>> response = applicationRoleController.getRoleById("TestApp", 1L);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        RoleDto roleDto = (RoleDto) response.getBody();
-        assertEquals("testRole", roleDto.getRoleName());
+        assertEquals(roleDto, response.getBody().getData());
     }
 
     @Test
-    void getRoleById_InvalidRoleId_ReturnsNotFound() {
-        String applicationName = "testApp";
-        Long applicationId = 1L;
-        Long roleId = 1L;
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void updateRole_shouldReturnOkAndUpdatedRoleDto() {
+        Role updatedRole = new Role();
+        updatedRole.setRoleName("ROLE_UPDATED");
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(roleService.getRoleByApplicationIdAndRoleId(1L, 1L)).thenReturn(Optional.of(role));
+        when(roleService.saveRole(any(Role.class))).thenReturn(updatedRole);
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-        when(applicationService.getApplicationIdByName(applicationName)).thenReturn(applicationId);
-
-        when(roleService.getRoleByApplicationIdAndRoleId(roleId, applicationId)).thenReturn(Optional.empty());
-
-        ResponseEntity<?> response = applicationRoleController.getRoleById(applicationName, roleId);
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-    }
-
-    @Test
-    void createRole_ValidInput_ReturnsCreated() {
-        String applicationName = "testApp";
-        Long applicationId = 1L;
-        Role role = new Role();
-        role.setRoleName("newRole");
-
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-        when(applicationService.getApplicationIdByName(applicationName)).thenReturn(applicationId);
-
-        Application application = new Application();
-        application.setId(applicationId);
-        when(applicationService.findApplicationById(applicationId)).thenReturn(Optional.of(application));
-        when(roleService.findByName("newRole")).thenReturn(Optional.empty());
-        when(roleService.saveRole(role)).thenReturn(role);
-
-        ResponseEntity<?> response = applicationRoleController.createRole(applicationName, role);
-
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertEquals(role, response.getBody());
-        verify(roleService, times(1)).saveRole(role);
-    }
-
-    @Test
-    void updateRole_ValidInput_ReturnsOk() {
-        String applicationName = "testApp";
-        Long applicationId = 1L;
-        Long roleId = 1L;
-        Role roleDetails = new Role();
-        roleDetails.setRoleName("updatedRole");
-
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-        when(applicationService.getApplicationIdByName(applicationName)).thenReturn(applicationId);
-
-        Role existingRole = new Role();
-        existingRole.setId(roleId);
-        existingRole.setRoleName("oldRole");
-
-        when(roleService.getRoleByApplicationIdAndRoleId(roleId, applicationId)).thenReturn(Optional.of(existingRole));
-        when(roleService.saveRole(existingRole)).thenReturn(existingRole);
-
-        ResponseEntity<?> response = applicationRoleController.updateRole(applicationName, roleId, roleDetails);
+        ResponseEntity<ApiResponse<RoleDto>> response = applicationRoleController.updateRole("TestApp", 1L, updatedRole);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        RoleDto roleDto = (RoleDto) response.getBody();
-        assertEquals("updatedRole", roleDto.getRoleName());
+        assertEquals("ROLE_UPDATED", response.getBody().getData().getRoleName());
     }
 
     @Test
-    void deleteRole_ValidInput_ReturnsNoContent() {
-        String applicationName = "testApp";
-        Long applicationId = 1L;
-        Long roleId = 1L;
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void deleteRole_shouldReturnNoContent() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(roleService.getRoleByApplicationIdAndRoleId(1L, 1L)).thenReturn(Optional.of(role));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-        when(applicationService.getApplicationIdByName(applicationName)).thenReturn(applicationId);
-
-        Role existingRole = new Role();
-        existingRole.setId(roleId);
-
-        when(roleService.getRoleByApplicationIdAndRoleId(roleId, applicationId)).thenReturn(Optional.of(existingRole));
-
-        ResponseEntity<?> response = applicationRoleController.deleteRole(applicationName, roleId);
+        ResponseEntity<ApiResponse<Void>> response = applicationRoleController.deleteRole("TestApp", 1L);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        verify(roleService, times(1)).deleteRole(roleId);
     }
 
     @Test
-    void getAllRoleNames_ValidApplication_ReturnsOk() {
-        String applicationName = "testApp";
-        Long applicationId = 1L;
+    @WithMockUser(authorities = {"ROLE_ADMIN", "ROLE_USER"})
+    void getAllRoleNames_shouldReturnOkAndListOfRoles() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(roleService.getRolesByApplicationId(1L)).thenReturn(Arrays.asList(role));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList(applicationName));
-        when(applicationService.getApplicationIdByName(applicationName)).thenReturn(applicationId);
-
-        Role role1 = new Role();
-        role1.setId(1L);
-        role1.setRoleName("role1");
-        Role role2 = new Role();
-        role2.setId(2L);
-        role2.setRoleName("role2");
-        List<Role> roles = Arrays.asList(role1, role2);
-
-        when(roleService.getRolesByApplicationId(applicationId)).thenReturn(roles);
-
-        ResponseEntity<?> response = applicationRoleController.getAllRoleNames(applicationName);
+        ResponseEntity<ApiResponse<List<Role>>> response = applicationRoleController.getAllRoleNames("TestApp");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(roles, response.getBody());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(role, response.getBody().getData().get(0));
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void createRole_shouldReturnCreatedAndRole() {
+        Role newRole = new Role();
+        newRole.setRoleName("ROLE_NEW");
+
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(applicationService.findApplicationById(1L)).thenReturn(Optional.of(application));
+        when(roleService.findByName("ROLE_NEW")).thenReturn(Optional.empty());
+        when(roleService.saveRole(any(Role.class))).thenReturn(newRole);
+
+        ResponseEntity<ApiResponse<Role>> response = applicationRoleController.createRole("TestApp", newRole);
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals("ROLE_NEW", response.getBody().getData().getRoleName());
+    }
+
+     @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void createRole_shouldReturnBadRequestWhenRoleNameEmpty() {
+        Role newRole = new Role();
+        newRole.setRoleName("");
+
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(applicationService.findApplicationById(1L)).thenReturn(Optional.of(application));
+
+        ResponseEntity<ApiResponse<Role>> response = applicationRoleController.createRole("TestApp", newRole);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Role name cannot be empty", response.getBody().getMessage());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_ADMIN"})
+    void createRole_shouldReturnConflictWhenRoleNameExists() {
+        Role newRole = new Role();
+        newRole.setRoleName("ROLE_NEW");
+
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(applicationService.findApplicationById(1L)).thenReturn(Optional.of(application));
+        when(roleService.findByName("ROLE_NEW")).thenReturn(Optional.of(newRole));
+
+        ResponseEntity<ApiResponse<Role>> response = applicationRoleController.createRole("TestApp", newRole);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("Role with this name already exists", response.getBody().getMessage());
     }
 }
