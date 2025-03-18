@@ -52,7 +52,7 @@ public class LoginController {
         if (authentication.isAuthenticated()) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
             String token = jwtService.generateToken(userDetails);
-            jwtRedisService.storeToken(userDetails.getUsername(), token);
+            jwtRedisService.storeToken(userDetails.getUsername()+ "-0", token);
             return ResponseEntity.ok(token);
         } else {
             return ResponseEntity.badRequest().body("Invalid credentials");
@@ -68,11 +68,12 @@ public class LoginController {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
         );
+        Long applicationID = applicationService.getApplicationIdByName(applicationName);
 
         if (authentication.isAuthenticated()) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
             String token = jwtAppService.generateToken(userDetails, applicationName);
-            jwtRedisService.storeToken(userDetails.getUsername(), token);
+            jwtRedisService.storeToken(userDetails.getUsername() + "-" + applicationID, token);
             return ResponseEntity.ok(token);
         } else {
             return ResponseEntity.badRequest().body("Invalid credentials");
