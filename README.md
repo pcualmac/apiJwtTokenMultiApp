@@ -1,9 +1,5 @@
 # Work in progress 
 
-work in progress main error at the moment 
-```
-2025-03-11 15:16:03 2025-03-11 15:16:03.229 ERROR c.e.a.controller.LogoutController - Error invalidating application-specific token for TestApp1: Unable to connect to Redis
-```
 ## Services
 
 * **workbase:** A Java development environment for running commands within the application's context.
