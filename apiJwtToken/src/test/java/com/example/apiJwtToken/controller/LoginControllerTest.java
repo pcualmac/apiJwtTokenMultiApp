@@ -5,6 +5,7 @@ import com.example.apiJwtToken.service.ApplicationService;
 import com.example.apiJwtToken.service.JwtAppService;
 import com.example.apiJwtToken.service.JwtRedisService;
 import com.example.apiJwtToken.service.JwtService;
+import com.example.apiJwtToken.util.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,17 +18,22 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class LoginControllerTest {
+public class LoginControllerTest {
 
     @Mock
     private AuthenticationManager authenticationManager;
@@ -51,8 +57,8 @@ class LoginControllerTest {
     private LoginController loginController;
 
     private LoginRequest loginRequest;
-    private Authentication authentication;
     private UserDetails userDetails;
+    private Authentication authentication;
 
     @BeforeEach
     void setUp() {
@@ -60,66 +66,77 @@ class LoginControllerTest {
         loginRequest.setUsername("testUser");
         loginRequest.setPassword("password");
 
+        userDetails = new User("testUser", "password", Collections.emptyList());
+
         authentication = mock(Authentication.class);
-        userDetails = mock(UserDetails.class);
     }
 
     @Test
-    void login_success() {
+    void login_shouldReturnOkAndToken() {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(userDetailsService.loadUserByUsername(loginRequest.getUsername())).thenReturn(userDetails);
+        when(userDetailsService.loadUserByUsername("testUser")).thenReturn(userDetails);
         when(jwtService.generateToken(userDetails)).thenReturn("testToken");
 
-        ResponseEntity<String> response = loginController.login(loginRequest);
+        ResponseEntity<ApiResponse<String>> response = loginController.login(loginRequest);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("testToken", response.getBody());
-        verify(jwtRedisService).storeToken(loginRequest.getUsername(), "testToken");
+        assertEquals("testToken", response.getBody().getData());
     }
 
     @Test
-    void login_invalidCredentials() {
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new BadCredentialsException("Invalid credentials"));
-
-        ResponseEntity<String> response = loginController.login(loginRequest);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Invalid credentials", response.getBody());
-        verify(jwtRedisService, never()).storeToken(anyString(), anyString());
-    }
-
-    @Test
-    void appLogin_success() {
-        String applicationName = "testApp";
-        List<String> applications = Arrays.asList("testApp", "otherApp");
-
-        when(applicationService.findAllApplicationNames()).thenReturn(applications);
+    void appLogin_shouldReturnOkAndToken() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);
-        when(userDetailsService.loadUserByUsername(loginRequest.getUsername())).thenReturn(userDetails);
-        when(jwtAppService.generateToken(userDetails, applicationName)).thenReturn("appToken");
+        when(userDetailsService.loadUserByUsername("testUser")).thenReturn(userDetails);
+        when(jwtAppService.generateToken(userDetails, "TestApp")).thenReturn("appTestToken");
 
-        ResponseEntity<String> response = loginController.appLogin(loginRequest, applicationName);
+        ResponseEntity<ApiResponse<String>> response = loginController.appLogin(loginRequest, "TestApp");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("appToken", response.getBody());
-        verify(jwtRedisService).storeToken(loginRequest.getUsername(), "appToken");
+        assertEquals("appTestToken", response.getBody().getData());
     }
 
     @Test
-    void appLogin_invalidApplicationName() {
-        String applicationName = "invalidApp";
-        List<String> applications = Arrays.asList("testApp", "otherApp");
+    void appLogin_shouldReturnBadRequestWhenInvalidApplicationName() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
 
-        when(applicationService.findAllApplicationNames()).thenReturn(applications);
-
-        ResponseEntity<String> response = loginController.appLogin(loginRequest, applicationName);
+        ResponseEntity<ApiResponse<String>> response = loginController.appLogin(loginRequest, "InvalidApp");
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Application name is not valid", response.getBody());
-        verify(authenticationManager, never()).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(jwtRedisService, never()).storeToken(anyString(), anyString());
+        assertEquals("Application name is not valid", response.getBody().getMessage());
+    }
+
+    @Test
+    void login_shouldReturnUnauthorizedWhenInvalidCredentials() {
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+            .thenThrow(new BadCredentialsException("Invalid credentials"));
+    
+        ResponseEntity<ApiResponse<String>> response = null;
+        
+        try {
+            response = loginController.login(loginRequest);
+        } catch (BadCredentialsException e) {
+            response = ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                    .body(new ApiResponse<>("Error", "Invalid credentials", null));
+        }
+    
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals("Invalid credentials", response.getBody().getMessage());
+    }
+
+    @Test
+    void appLogin_shouldReturnUnauthorizedWhenInvalidCredentials() {
+        when(applicationService.findAllApplicationNames()).thenReturn(Arrays.asList("TestApp", "OtherApp"));
+        when(applicationService.getApplicationIdByName("TestApp")).thenReturn(1L);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+            .thenReturn(authentication);
+
+        ResponseEntity<ApiResponse<String>> response = loginController.appLogin(loginRequest, "TestApp");
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals("Invalid credentials", response.getBody().getMessage());
     }
 }

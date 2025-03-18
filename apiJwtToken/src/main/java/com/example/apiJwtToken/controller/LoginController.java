@@ -5,10 +5,12 @@ import com.example.apiJwtToken.service.JwtAppService;
 import com.example.apiJwtToken.service.JwtRedisService;
 import com.example.apiJwtToken.service.JwtService;
 import com.example.apiJwtToken.service.ApplicationService;
+import com.example.apiJwtToken.util.ApiResponse;
 
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -44,7 +46,7 @@ public class LoginController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<ApiResponse<String>> login(@RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
         );
@@ -52,18 +54,18 @@ public class LoginController {
         if (authentication.isAuthenticated()) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
             String token = jwtService.generateToken(userDetails);
-            jwtRedisService.storeToken(userDetails.getUsername()+ "-0", token);
-            return ResponseEntity.ok(token);
+            jwtRedisService.storeToken(userDetails.getUsername() + "-0", token);
+            return ResponseEntity.ok(new ApiResponse<>("Success", "Token generated successfully", token));
         } else {
-            return ResponseEntity.badRequest().body("Invalid credentials");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("Error", "Invalid credentials", null));
         }
     }
 
     @PostMapping("/{applicationName}/login")
-    public ResponseEntity<String> appLogin(@RequestBody LoginRequest loginRequest, @PathVariable String applicationName) {
+    public ResponseEntity<ApiResponse<String>> appLogin(@RequestBody LoginRequest loginRequest, @PathVariable String applicationName) {
         List<String> applications = applicationService.findAllApplicationNames();
         if (!applications.contains(applicationName)) {
-            return ResponseEntity.badRequest().body("Application name is not valid");
+            return ResponseEntity.badRequest().body(new ApiResponse<>("Error", "Application name is not valid", null));
         }
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
@@ -74,9 +76,9 @@ public class LoginController {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getUsername());
             String token = jwtAppService.generateToken(userDetails, applicationName);
             jwtRedisService.storeToken(userDetails.getUsername() + "-" + applicationID, token);
-            return ResponseEntity.ok(token);
+            return ResponseEntity.ok(new ApiResponse<>("Success", "Token generated successfully", token));
         } else {
-            return ResponseEntity.badRequest().body("Invalid credentials");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>("Error", "Invalid credentials", null));
         }
     }
 }
