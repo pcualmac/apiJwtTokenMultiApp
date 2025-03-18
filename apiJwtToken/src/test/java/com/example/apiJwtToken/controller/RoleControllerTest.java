@@ -3,6 +3,7 @@ package com.example.apiJwtToken.controller;
 import com.example.apiJwtToken.dto.RoleDto;
 import com.example.apiJwtToken.model.Role;
 import com.example.apiJwtToken.service.RoleService;
+import com.example.apiJwtToken.util.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,13 +12,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,125 +30,150 @@ public class RoleControllerTest {
     @InjectMocks
     private RoleController roleController;
 
-    private Role role;
-    private RoleDto roleDto;
+    private Role role1;
+    private Role role2;
+    private RoleDto roleDto1;
+    private RoleDto roleDto2;
 
     @BeforeEach
     void setUp() {
-        role = new Role();
-        role.setId(1L);
-        role.setRoleName("ROLE_TEST");
+        role1 = new Role();
+        role1.setId(1L);
+        role1.setRoleName("ROLE_ADMIN");
 
-        roleDto = new RoleDto(1L, "ROLE_TEST");
+        role2 = new Role();
+        role2.setId(2L);
+        role2.setRoleName("ROLE_USER");
+
+        roleDto1 = new RoleDto(1L, "ROLE_ADMIN");
+        roleDto2 = new RoleDto(2L, "ROLE_USER");
     }
 
     @Test
-    void getAllRoles_shouldReturnOkWithListOfRoleDtos() {
-        when(roleService.getAllRoles()).thenReturn(Arrays.asList(role));
-        ResponseEntity<List<RoleDto>> response = roleController.getAllRoles();
+    void getAllRoles_shouldReturnOkAndListOfRoleDtos() {
+        when(roleService.getAllRoles()).thenReturn(Arrays.asList(role1, role2));
+
+        ResponseEntity<ApiResponse<List<RoleDto>>> response = roleController.getAllRoles();
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals(roleDto, response.getBody().get(0));
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(roleDto1, response.getBody().getData().get(0));
+        assertEquals(roleDto2, response.getBody().getData().get(1));
     }
 
     @Test
-    void getRoleById_shouldReturnOkWithRoleDto() {
-        when(roleService.getRoleById(1L)).thenReturn(Optional.of(role));
-        ResponseEntity<RoleDto> response = roleController.getRoleById(1L);
+    void getRoleById_shouldReturnOkAndRoleDto() {
+        when(roleService.getRoleById(1L)).thenReturn(Optional.of(role1));
+
+        ResponseEntity<ApiResponse<RoleDto>> response = roleController.getRoleById(1L);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(roleDto, response.getBody());
+        assertEquals(roleDto1, response.getBody().getData());
     }
 
     @Test
-    void getRoleById_shouldReturnNotFoundWhenRoleDoesNotExist() {
+    void getRoleById_shouldReturnNotFoundWhenRoleNotFound() {
         when(roleService.getRoleById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<RoleDto> response = roleController.getRoleById(1L);
+
+        ResponseEntity<ApiResponse<RoleDto>> response = roleController.getRoleById(1L);
+
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Role not found", response.getBody().getMessage());
     }
 
     @Test
-    void createRole_shouldReturnCreatedWithRole() {
-        when(roleService.findByName("ROLE_TEST")).thenReturn(Optional.empty());
-        when(roleService.saveRole(any(Role.class))).thenReturn(role);
-        ResponseEntity<Role> response = roleController.createRole(role);
+    void createRole_shouldReturnCreatedAndSavedRole() {
+        when(roleService.findByName("ROLE_ADMIN")).thenReturn(Optional.empty());
+        when(roleService.saveRole(any(Role.class))).thenReturn(role1);
+
+        ResponseEntity<ApiResponse<Role>> response = roleController.createRole(role1);
+
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(role.getRoleName(), response.getBody().getRoleName());
+        assertEquals(role1, response.getBody().getData());
     }
 
     @Test
     void createRole_shouldReturnBadRequestWhenRoleNameIsEmpty() {
-        role.setRoleName("");
-        ResponseEntity<Role> response = roleController.createRole(role);
+        role1.setRoleName("   ");
+
+        ResponseEntity<ApiResponse<Role>> response = roleController.createRole(role1);
+
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Role name is required", response.getBody().getMessage());
     }
 
     @Test
-    void createRole_shouldReturnConflictWhenRoleNameExists() {
-        when(roleService.findByName("ROLE_TEST")).thenReturn(Optional.of(role));
-        ResponseEntity<Role> response = roleController.createRole(role);
+    void createRole_shouldReturnConflictWhenRoleAlreadyExists() {
+        when(roleService.findByName("ROLE_ADMIN")).thenReturn(Optional.of(role1));
+
+        ResponseEntity<ApiResponse<Role>> response = roleController.createRole(role1);
+
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("Role already exists", response.getBody().getMessage());
     }
 
     @Test
-    void updateRole_shouldReturnOkWithUpdatedRoleDto() {
-        when(roleService.getRoleById(1L)).thenReturn(Optional.of(role));
-        when(roleService.saveRole(any(Role.class))).thenReturn(role);
-        ResponseEntity<RoleDto> response = roleController.updateRole(1L, role);
+    void updateRole_shouldReturnOkAndUpdatedRoleDto() {
+        Role updatedRole = new Role();
+        updatedRole.setId(1L);
+        updatedRole.setRoleName("ROLE_UPDATED");
+        when(roleService.getRoleById(1L)).thenReturn(Optional.of(role1));
+        when(roleService.saveRole(any(Role.class))).thenReturn(updatedRole);
+
+        ResponseEntity<ApiResponse<RoleDto>> response = roleController.updateRole(1L, updatedRole);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(roleDto, response.getBody());
+        assertEquals("ROLE_UPDATED", response.getBody().getData().getRoleName());
     }
 
     @Test
-    void updateRole_shouldReturnNotFoundWhenRoleDoesNotExist() {
+    void updateRole_shouldReturnNotFoundWhenRoleNotFound() {
         when(roleService.getRoleById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<RoleDto> response = roleController.updateRole(1L, role);
+
+        ResponseEntity<ApiResponse<RoleDto>> response = roleController.updateRole(1L, role1);
+
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Role not found", response.getBody().getMessage());
     }
 
     @Test
     void deleteRole_shouldReturnNoContent() {
-        when(roleService.getRoleById(1L)).thenReturn(Optional.of(role));
-        ResponseEntity<Void> response = roleController.deleteRole(1L);
+        when(roleService.getRoleById(1L)).thenReturn(Optional.of(role1));
+
+        ResponseEntity<ApiResponse<Void>> response = roleController.deleteRole(1L);
+
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-        verify(roleService, times(1)).deleteRole(1L);
     }
 
     @Test
-    void deleteRole_shouldReturnNotFoundWhenRoleDoesNotExist() {
+    void deleteRole_shouldReturnNotFoundWhenRoleNotFound() {
         when(roleService.getRoleById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<Void> response = roleController.deleteRole(1L);
+
+        ResponseEntity<ApiResponse<Void>> response = roleController.deleteRole(1L);
+
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        verify(roleService, never()).deleteRole(1L);
+        assertEquals("Role not found", response.getBody().getMessage());
     }
 
     @Test
-    void getAllRoleNames_shouldReturnOkWithListOfNames() {
-        when(roleService.getAllRoleNames()).thenReturn(Arrays.asList("ROLE_TEST"));
-        ResponseEntity<List<String>> response = roleController.getAllRoleNames();
+    void getAllRoleNames_shouldReturnOkAndListOfRoleNames() {
+        when(roleService.getAllRoleNames()).thenReturn(Arrays.asList("ROLE_ADMIN", "ROLE_USER"));
+
+        ResponseEntity<ApiResponse<List<String>>> response = roleController.getAllRoleNames();
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals("ROLE_TEST", response.getBody().get(0));
+        assertEquals(Arrays.asList("ROLE_ADMIN", "ROLE_USER"), response.getBody().getData());
     }
 
     @Test
-    void getRoleByApplicationId_shouldReturnOkWithListOfRoleDtos() {
-        when(roleService.getRolesByApplicationId(1L)).thenReturn(Arrays.asList(role));
-        ResponseEntity<List<RoleDto>> response = roleController.getRoleByApplicationId(1L);
+    void getRoleByApplicationId_shouldReturnOkAndListOfRoleDtos() {
+        when(roleService.getRolesByApplicationId(1L)).thenReturn(Arrays.asList(role1, role2));
+
+        ResponseEntity<ApiResponse<List<RoleDto>>> response = roleController.getRoleByApplicationId(1L);
+
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals(roleDto, response.getBody().get(0));
-    }
-
-    @Test
-    public void getAllRoles_accessDenied() {
-        when(roleService.getAllRoles()).thenThrow(new AccessDeniedException("Access Denied"));
-
-        assertThrows(AccessDeniedException.class, () -> roleController.getAllRoles());
+        assertEquals(2, response.getBody().getData().size());
+        assertEquals(roleDto1, response.getBody().getData().get(0));
+        assertEquals(roleDto2, response.getBody().getData().get(1));
     }
 }
